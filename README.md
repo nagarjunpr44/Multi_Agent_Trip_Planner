@@ -1,8 +1,43 @@
 # ✈️ AgenticTripPlanner
 
-**Production-grade AI travel planning system powered by LangGraph multi-agent orchestration.**
+<p align="left">
+  <img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/FastAPI-Backend-009688?logo=fastapi&logoColor=white" alt="FastAPI">
+  <img src="https://img.shields.io/badge/Streamlit-UI-FF4B4B?logo=streamlit&logoColor=white" alt="Streamlit">
+  <img src="https://img.shields.io/badge/LangGraph-Multi--Agent-1f6feb" alt="LangGraph">
+  <img src="https://img.shields.io/badge/Observability-Prometheus%20%2B%20LangSmith-7A3E9D" alt="Observability">
+</p>
 
-AgenticTripPlanner is a full-stack application that uses a team of specialized AI agents — coordinated via a LangGraph `StateGraph` — to research destinations, search flights and hotels, discover local experiences, optimize budgets, build day-by-day itineraries, validate plan quality, and handle simulated bookings. It features a FastAPI backend, Streamlit chat UI, real-time SSE/WebSocket streaming, Human-in-the-Loop (HITL) approval, persistent memory via ChromaDB, and full observability with Prometheus + LangSmith.
+**Production-grade AI travel planning platform powered by LangGraph multi-agent orchestration.**
+
+AgenticTripPlanner is a full-stack system where specialized AI agents collaborate to deliver complete trip plans end-to-end: destination research, flight/hotel discovery, experiences, budget optimization, itinerary generation, validation, and booking simulation. It includes a FastAPI backend, Streamlit conversational UI, real-time progress streaming (SSE/WebSocket), optional HITL checkpoints, vector memory with ChromaDB, and built-in observability.
+
+## Why this project stands out
+
+- **Real orchestration, not a single prompt** — planning is executed through a LangGraph `StateGraph` with fan-out parallelism and conditional revision loops.
+- **Human-in-the-loop ready** — optional pause/approve/reject workflow before booking.
+- **Production-minded architecture** — API + UI separation, checkpointing, persistence, structured schemas, and telemetry.
+- **Developer-friendly defaults** — local mode works with SQLite and optional services; full stack available via Docker Compose.
+
+## Quick Start (2 minutes)
+
+```bash
+# 1) Setup
+python -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+
+# 2) Configure environment
+cp .env.example .env
+
+# 3) Run API and UI (separate terminals)
+python main.py          # API on :8000
+python main.py --ui     # Streamlit on :8501
+```
+
+Open:
+- UI: `http://localhost:8501`
+- API docs: `http://localhost:8000/docs`
 
 ---
 
