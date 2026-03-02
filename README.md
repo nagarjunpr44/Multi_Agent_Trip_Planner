@@ -23,16 +23,14 @@ AgenticTripPlanner is a full-stack system where specialized AI agents collaborat
 
 ```bash
 # 1) Setup
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
+uv sync --dev
 
 # 2) Configure environment
 cp .env.example .env
 
 # 3) Run API and UI (separate terminals)
-python main.py          # API on :8000
-python main.py --ui     # Streamlit on :8501
+uv run python main.py          # API on :8000
+uv run python main.py --ui     # Streamlit on :8501
 ```
 
 Open:
@@ -566,25 +564,23 @@ The `/metrics` endpoint is auto-mounted when `prometheus_client` is installed.
 ```bash
 # 1. Clone and setup
 cd AgenticTripPlanner
-python -m venv .venv
-source .venv/bin/activate
 
-# 2. Install dependencies
-pip install -e ".[dev]"
+# 2. Install dependencies (creates .venv automatically)
+uv sync --dev
 
 # 3. Configure environment
 cp .env.example .env   # Edit with your API keys
 
 # 4. Run the smoke test (no external services needed)
-MOCK_FALLBACK=true python test_agent.py
+MOCK_FALLBACK=true uv run python test_agent.py
 
 # 5. Start the API server
-python main.py
+uv run python main.py
 
 # 6. Start the Streamlit UI (separate terminal)
-python main.py --ui
+uv run python main.py --ui
 # Or directly:
-streamlit run ui/app.py
+uv run streamlit run ui/app.py
 ```
 
 The API runs on `http://localhost:8000` (Swagger docs at `/docs`).  
@@ -610,16 +606,16 @@ docker compose up --build
 
 ```bash
 # Smoke test (mock mode, no services needed)
-MOCK_FALLBACK=true python test_agent.py
+MOCK_FALLBACK=true uv run python test_agent.py
 
 # End-to-end test (uses real APIs if configured)
-python test_e2e.py
+uv run python test_e2e.py
 
 # Pytest suite
-pytest tests/ -v --cov
+uv run pytest tests/ -v --cov
 
 # Run database migrations
-python main.py --migrate
+uv run python main.py --migrate
 ```
 
 ---
