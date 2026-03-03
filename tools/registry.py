@@ -14,7 +14,7 @@ class ToolRegistry:
     # Maps agent name → list of tool names it should receive
     _agent_tools: dict[str, list[str]] = {
         "supervisor": [],
-        "research": ["web_research_tool", "get_weather_tool"],
+        "research": ["web_research_tool", "get_weather_tool", "search_tripadvisor_tool"],
         "flights": ["search_flights_tool"],
         "hotels": ["search_hotels_tool"],
         "experiences": ["search_places_tool"],
@@ -54,6 +54,7 @@ def initialize_registry() -> None:
     from tools.maps import get_travel_distance_tool
     from tools.places import search_places_tool
     from tools.research import web_research_tool
+    from tools.tripadvisor import search_tripadvisor_tool
     from tools.weather import get_weather_tool
 
     for tool_fn in [
@@ -64,6 +65,7 @@ def initialize_registry() -> None:
         web_research_tool,
         convert_currency_tool,
         get_travel_distance_tool,
+        search_tripadvisor_tool,
     ]:
         # Register by the tool's actual .name (what the LLM uses in tool calls)
         ToolRegistry.register(tool_fn.name, tool_fn)

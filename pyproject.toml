@@ -27,6 +27,7 @@ dependencies = [
     "fastapi>=0.134",
     "uvicorn[standard]>=0.32",
     "sse-starlette>=2.1",
+    "sseclient-py>=1.7",
     "websockets>=14.0",
     "python-multipart>=0.0.12",
 
@@ -49,6 +50,8 @@ dependencies = [
     # External APIs
     "amadeus>=9.0",
     "tavily-python>=0.7",
+    "langchain-tavily>=0.1",
+    "langchain-mcp-adapters>=0.1",
     "httpx>=0.28",
     "geopy>=2.4",
 

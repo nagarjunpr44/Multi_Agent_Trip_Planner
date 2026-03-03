@@ -351,28 +351,62 @@ def _render_results(trip: Any) -> str:
     # --- Booking summary ---
     booking = _coerce_dict(trip.get("booking"))
     if not booking:
-        booking = _coerce_dict(raw_state.get("booking_confirmation"))
+        booking = _coerce_dict(raw_state.get("booking_result"))
 
     if booking:
-        parts.append("### 🎫 Booking Summary\n")
-        total = booking.get("total_cost") or booking.get("total_cost_usd")
+        parts.append("### Booking Summary\n")
+
+        # Status and reference
+        status = booking.get("status", "unknown")
+        ref = booking.get("booking_reference", "")
+        if ref:
+            parts.append(f"**Reference:** {ref}")
+        parts.append(f"**Status:** {status}\n")
+
+        # LLM-generated summary
+        summary = booking.get("summary")
+        if summary:
+            parts.append(f"{summary}\n")
+
+        # Price breakdown
+        total = booking.get("total_estimated_usd")
         if total:
-            parts.append(f"**Total Cost:** ${total:,.2f}" if isinstance(total, (int, float)) else f"**Total Cost:** {total}")
+            parts.append(f"**Total Estimated Cost:** ${total:,.2f}")
+        breakdown = booking.get("price_breakdown") or {}
+        if breakdown:
+            for label, key in [
+                ("Flights", "flights_usd"),
+                ("Hotel", "hotel_usd"),
+                ("Activities", "activities_usd"),
+                ("Food", "food_usd"),
+                ("Transport", "transport_usd"),
+            ]:
+                val = breakdown.get(key)
+                if val:
+                    parts.append(f"  - {label}: ${val:,.2f}")
+        parts.append("")
 
-        confirmation = _coerce_dict(booking.get("confirmation_details"))
-        flights = confirmation.get("flights") or booking.get("flights", {})
-        hotels = confirmation.get("hotels") or booking.get("hotels", {})
-        experiences = confirmation.get("experiences") or booking.get("experiences", {})
+        # Flight details
+        fb = _coerce_dict(booking.get("flight_booking"))
+        if fb and fb.get("airline"):
+            parts.append(f"**Flight:** {fb.get('airline', 'N/A')} — ${fb.get('total_price_usd', 0):,.2f}")
 
-        if flights:
-            status = flights.get("status", "confirmed") if isinstance(flights, dict) else "confirmed"
-            parts.append(f"- ✈️ Flights: {status}")
-        if hotels:
-            status = hotels.get("status", "confirmed") if isinstance(hotels, dict) else "confirmed"
-            parts.append(f"- 🏨 Hotels: {status}")
-        if experiences:
-            status = experiences.get("status", "confirmed") if isinstance(experiences, dict) else "confirmed"
-            parts.append(f"- 🎭 Experiences: {status}")
+        # Hotel details
+        hb = _coerce_dict(booking.get("hotel_booking"))
+        if hb and hb.get("name"):
+            parts.append(f"**Hotel:** {hb.get('name', 'N/A')} — ${hb.get('price_per_night_usd', 0):,.2f}/night")
+
+        # Booking instructions
+        instructions = booking.get("booking_instructions") or []
+        if instructions:
+            parts.append("\n**Next Steps:**")
+            for line in instructions:
+                if isinstance(line, str) and line.strip():
+                    parts.append(f"  - {line}")
+
+        # Real booking flag
+        if not booking.get("is_real_booking"):
+            parts.append("\n*This is a pre-booking plan. Complete reservations using the steps above.*")
 
     if not daily and not booking:
         parts.append("The trip was planned but no detailed itinerary is available yet.")

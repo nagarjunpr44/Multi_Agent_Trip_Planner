@@ -88,12 +88,12 @@ async def budget_node(state: TravelState) -> dict:
 
 def _calc_days(dep: str | None, ret: str | None) -> int:
     if not dep or not ret:
-        return 7
+        return 3
     from datetime import date
     try:
         return max(1, (date.fromisoformat(ret) - date.fromisoformat(dep)).days)
     except Exception:
-        return 7
+        return 3
 
 
 def _summarize_flights(fr: dict | None) -> str:

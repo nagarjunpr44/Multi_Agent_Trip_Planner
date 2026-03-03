@@ -1,13 +1,8 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
-
-from schemas.budget import BudgetAnalysis
-from schemas.flight import FlightSearchResult
-from schemas.hotel import HotelSearchResult
-from schemas.itinerary import Experience, Itinerary
 
 
 class ToolError(BaseModel):
@@ -45,17 +40,17 @@ class DestinationInfo(BaseModel):
     best_months_to_visit: list[str] = Field(default_factory=list)
     current_weather_summary: str = ""
     upcoming_events: list[str] = Field(default_factory=list)
-    visa_requirements: Optional[str] = None
-    safety_notes: Optional[str] = None
+    visa_requirements: str | None = None
+    safety_notes: str | None = None
     cultural_tips: list[str] = Field(default_factory=list)
-    language: Optional[str] = None
-    currency: Optional[str] = None
-    timezone: Optional[str] = None
+    language: str | None = None
+    currency: str | None = None
+    timezone: str | None = None
     highlights: list[str] = Field(default_factory=list)
     local_tips: list[str] = Field(default_factory=list)
-    best_season: Optional[str] = None
+    best_season: str | None = None
     research_sources: list[str] = Field(default_factory=list)
-    city: Optional[str] = None
+    city: str | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -97,15 +92,41 @@ class ValidationResult(BaseModel):
 
 
 class BookingResult(BaseModel):
-    """Structured output from the Booking agent."""
+    """
+    Trip booking package produced by the Booking agent.
 
-    booking_reference: Optional[str] = None
-    flight_booking: Optional[dict] = None
-    hotel_booking: Optional[dict] = None
-    total_charged_usd: float = 0.0
-    confirmation_details: Optional[str] = None
-    booked_at: Optional[str] = None
-    status: str = "confirmed"  # pending | confirmed | failed | skipped
+    status values:
+      ready_to_book      — plan complete, real prices calculated, awaiting human to book
+      awaiting_approval  — HITL mode, paused for human review
+      skipped            — booking step deliberately skipped
+    """
+
+    # Session-scoped reference (NOT a real airline PNR or hotel confirmation)
+    booking_reference: str | None = None
+    status: str = "ready_to_book"   # ready_to_book | awaiting_approval | skipped
+
+    # Real flight data sourced from Amadeus search results
+    flight_offer_id: str | None = None       # Amadeus offer ID (if available)
+    flight_booking: dict | None = None       # full flight option dict from search
+
+    # Real hotel data sourced from Amadeus search results
+    hotel_offer_id: str | None = None        # Amadeus offer ID (if available)
+    hotel_booking: dict | None = None        # full hotel option dict from search
+
+    # Pricing calculated from real search data (not LLM-estimated)
+    total_estimated_usd: float = 0.0
+    price_breakdown: dict = Field(default_factory=dict)  # {"flights": x, "hotel": x, ...}
+
+    # Actionable next steps for the human to complete booking
+    booking_instructions: list[str] = Field(default_factory=list)
+    booking_links: dict = Field(default_factory=dict)    # {"flight": url, "hotel": url}
+
+    # Human-readable summary (LLM-generated from real data)
+    summary: str | None = None
+    booked_at: str | None = None
+
+    # Flag: False until Duffel/LiteAPI integrated for live booking
+    is_real_booking: bool = False
 
     @model_validator(mode="before")
     @classmethod
@@ -116,6 +137,9 @@ class BookingResult(BaseModel):
                 val = data.get(f)
                 if isinstance(val, str):
                     data[f] = {"reference": val}
+            # Rename legacy total_charged_usd → total_estimated_usd if present
+            if "total_charged_usd" in data and "total_estimated_usd" not in data:
+                data["total_estimated_usd"] = data.pop("total_charged_usd")
         return data
 
 
@@ -124,6 +148,6 @@ class AgentOutput(BaseModel):
 
     agent_name: str
     success: bool
-    data: Optional[dict] = None
-    error: Optional[ToolError] = None
-    duration_ms: Optional[int] = None
+    data: dict | None = None
+    error: ToolError | None = None
+    duration_ms: int | None = None

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import operator
-from typing import Annotated, Any, Literal, Optional
+from typing import Annotated, Any, Literal
 
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
@@ -12,16 +12,6 @@ def _merge_dicts(a: dict, b: dict) -> dict:
     """Merge reducer for dict-typed state fields updated by parallel nodes."""
     return {**a, **b}
 
-from schemas.agent_output import (
-    BookingResult,
-    DestinationInfo,
-    SupervisorPlan,
-    ValidationResult,
-)
-from schemas.budget import BudgetAnalysis
-from schemas.flight import FlightSearchResult
-from schemas.hotel import HotelSearchResult
-from schemas.itinerary import Experience, Itinerary
 
 
 class TravelState(TypedDict):
@@ -37,26 +27,29 @@ class TravelState(TypedDict):
     # ── Supervisor plan ──────────────────────────────────────────────────────
     execution_plan: list[str]
     parallel_targets: list[str]
-    supervisor_plan: Optional[dict]  # serialized SupervisorPlan
+    supervisor_plan: dict | None  # serialized SupervisorPlan
 
     # ── Parallel agent outputs ───────────────────────────────────────────────
-    destination_info: Optional[dict]       # serialized DestinationInfo
-    flight_results: Optional[dict]         # serialized FlightSearchResult
-    hotel_results: Optional[dict]          # serialized HotelSearchResult
+    destination_info: dict | None       # serialized DestinationInfo
+    flight_results: dict | None         # serialized FlightSearchResult
+    hotel_results: dict | None          # serialized HotelSearchResult
     experience_results: list[dict]         # list of serialized Experience
 
     # ── Sequential agent outputs ─────────────────────────────────────────────
-    budget_analysis: Optional[dict]        # serialized BudgetAnalysis
-    itinerary: Optional[dict]             # serialized Itinerary
-    validation_result: Optional[dict]     # serialized ValidationResult
-    booking_result: Optional[dict]        # serialized BookingResult
+    budget_analysis: dict | None        # serialized BudgetAnalysis
+    itinerary: dict | None             # serialized Itinerary
+    validation_result: dict | None     # serialized ValidationResult
+    booking_result: dict | None        # serialized BookingResult
 
     # ── User memory / context ────────────────────────────────────────────────
-    user_context: Optional[dict]          # loaded from ChromaDB
+    user_context: dict | None          # loaded from ChromaDB
 
     # ── HITL ─────────────────────────────────────────────────────────────────
-    human_feedback: Optional[str]
-    human_approved: Optional[bool]
+    human_feedback: str | None
+    human_approved: bool | None
+
+    # ── Revision feedback (set by validator on failure, consumed by itinerary) ─
+    revision_feedback: str | None
 
     # ── Control flow ─────────────────────────────────────────────────────────
     revision_count: int

@@ -62,6 +62,7 @@ class APIKeySettings(BaseSettings):
     google_maps_api_key: str = Field(default="", alias="GOOGLE_MAPS_API_KEY")
     tavily_api_key: str = Field(default="", alias="TAVILY_API_KEY")
     exchange_rates_api_key: str = Field(default="", alias="EXCHANGE_RATES_API_KEY")
+    tripadvisor_api_key: str = Field(default="", alias="TRIPADVISOR_API_KEY")
     langsmith_api_key: str = Field(default="", alias="LANGSMITH_API_KEY")
     langsmith_project: str = Field(
         default="agentictripplanner", alias="LANGSMITH_PROJECT"
@@ -79,6 +80,7 @@ class AppSettings(BaseSettings):
     app_port: int = Field(default=8000, alias="APP_PORT")
     app_log_level: str = Field(default="INFO", alias="APP_LOG_LEVEL")
     mock_fallback: bool = Field(default=False, alias="MOCK_FALLBACK")
+    mcp_enabled: bool = Field(default=False, alias="MCP_ENABLED")
     tool_max_retries: int = Field(default=3, alias="TOOL_MAX_RETRIES")
     tool_timeout_seconds: int = Field(default=30, alias="TOOL_TIMEOUT_SECONDS")
     max_revision_cycles: int = Field(default=2, alias="MAX_REVISION_CYCLES")

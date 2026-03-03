@@ -28,6 +28,17 @@ def build_llm(config: AgentModelConfig) -> BaseChatModel:
     )
 
 
+@lru_cache(maxsize=16)
 def get_llm_for_agent(agent_name: str) -> BaseChatModel:
-    """Get a fresh LLM instance for the named agent."""
+    """
+    Return a cached LLM instance for the named agent.
+
+    The same agent always gets the same model config, so caching is safe.
+    Call clear_llm_cache() in tests that need fresh instances.
+    """
     return build_llm(get_agent_config(agent_name))
+
+
+def clear_llm_cache() -> None:
+    """Invalidate the LLM instance cache (useful in tests)."""
+    get_llm_for_agent.cache_clear()

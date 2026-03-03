@@ -13,7 +13,11 @@ from schemas.agent_output import ValidationResult
 async def validator_node(state: TravelState) -> dict:
     """
     Validator Agent: quality-critic that scores the itinerary across four dimensions.
-    If score < 0.75 and revision_count < 2, the graph loops back for another planning pass.
+
+    On failure, populates `revision_feedback` with a structured summary of issues
+    and suggestions so the itinerary agent can produce a targeted improvement.
+    If score < 0.75 and revision_count < MAX_REVISIONS, the graph routes back
+    to itinerary_node (not budget_node — budget data is unchanged).
     """
     t0 = time.monotonic()
     agent_name = "validator"
@@ -47,9 +51,34 @@ async def validator_node(state: TravelState) -> dict:
 
     new_revision_count = revision_count if result.passed else revision_count + 1
 
+    # Build actionable feedback for the itinerary agent's next revision pass
+    revision_feedback: str | None = None
+    if not result.passed:
+        issues_str = (
+            "\n".join(f"• {issue}" for issue in result.issues)
+            if result.issues
+            else "No specific issues listed."
+        )
+        suggestions_str = (
+            "\n".join(f"• {s}" for s in result.suggestions)
+            if result.suggestions
+            else "No suggestions provided."
+        )
+        revision_feedback = (
+            f"ISSUES TO FIX:\n{issues_str}\n\n"
+            f"SUGGESTIONS TO INCORPORATE:\n{suggestions_str}\n\n"
+            f"DIMENSION SCORES:\n"
+            f"  Feasibility:      {result.feasibility_score:.2f}\n"
+            f"  Budget alignment: {result.budget_alignment_score:.2f}\n"
+            f"  Coverage:         {result.coverage_score:.2f}\n"
+            f"  Quality:          {result.quality_score:.2f}\n"
+            f"  Overall:          {result.score:.2f} (need ≥ 0.75 to pass)"
+        )
+
     return {
         "validation_result": result.model_dump(),
         "revision_count": new_revision_count,
+        "revision_feedback": revision_feedback,
         "agent_timings": timings,
     }
 
@@ -72,18 +101,22 @@ def _build_validation_prompt(
     days = itinerary.get("days", [])
     num_days = len(days)
     highlights = itinerary.get("highlights", [])
-    total_est = itinerary.get("total_estimated_cost_usd", "unknown")
+    total_est = itinerary.get("total_activities_cost_usd", "unknown")
 
-    mid_budget = (budget_analysis.get("mid") or {}).get("total_cost_usd", "unknown")
+    # BudgetTier field is total_usd (not total_cost_usd)
+    mid_budget = (budget_analysis.get("mid") or {}).get("total_usd", "unknown")
 
-    num_flights = len((flight_results.get("options") or []))
-    num_hotels = len((hotel_results.get("options") or []))
+    num_flights = len(flight_results.get("options") or [])
+    num_hotels = len(hotel_results.get("options") or [])
     num_experiences = len(experience_results)
 
     pref_str = ", ".join(preferences) if preferences else "none specified"
     avoid_str = ", ".join(avoid) if avoid else "none"
     hl_str = ", ".join(highlights[:5]) if highlights else "none"
-    daily_themes = [(d.get("theme") or f"Day {d.get('day_number', i+1)}") for i, d in enumerate(days[:4])]
+    daily_themes = [
+        (d.get("theme") or f"Day {d.get('day_number', i + 1)}")
+        for i, d in enumerate(days[:4])
+    ]
 
     return (
         f"Validate this travel plan:\n\n"
@@ -97,8 +130,8 @@ def _build_validation_prompt(
         f"  Highlights: {hl_str}\n"
         f"  Day themes: {', '.join(daily_themes)}\n"
         f"  Total days planned: {num_days}\n"
-        f"  Estimated total cost: ${total_est}\n"
-        f"  Estimated mid budget: ${mid_budget}\n\n"
+        f"  Estimated activities cost: ${total_est}\n"
+        f"  Estimated mid-tier total: ${mid_budget}\n\n"
         f"DATA COVERAGE:\n"
         f"  Flights found: {num_flights}\n"
         f"  Hotels found: {num_hotels}\n"

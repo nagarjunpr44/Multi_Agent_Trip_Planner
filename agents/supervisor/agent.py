@@ -26,7 +26,7 @@ async def supervisor_node(state: TravelState) -> dict:
     past_trips = context.get("past_trips", [])
     memory_note = ""
     if past_trips:
-        memory_note = f"\n\nUser's past trips for context:\n" + "\n".join(
+        memory_note = "\n\nUser's past trips for context:\n" + "\n".join(
             f"- {t}" for t in past_trips[:2]
         )
 

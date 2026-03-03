@@ -3,35 +3,36 @@ from __future__ import annotations
 import json
 import time
 
-from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import HumanMessage, ToolMessage
+from langgraph.prebuilt import create_react_agent
 
 from agents.llm_factory import get_llm_for_agent
 from agents.state import TravelState
 from prompts.loader import get_prompt
-from schemas.itinerary import Experience
 from tools.registry import ToolRegistry
 
 
 async def experiences_node(state: TravelState) -> dict:
     """
-    Experiences Agent: discovers restaurants, attractions, hidden gems, and activities
-    using Google Places.
+    Experiences Agent: discovers restaurants, attractions, hidden gems, and activities.
+
+    Uses create_react_agent to manage the multi-call tool loop automatically.
+    The agent searches across all 4 categories; results are extracted directly
+    from ToolMessages in the returned conversation history.
     """
     t0 = time.monotonic()
     agent_name = "experiences"
 
     llm = get_llm_for_agent(agent_name)
     tools = ToolRegistry.get_for_agent(agent_name)
-    llm_with_tools = llm.bind_tools(tools)
-
     system_prompt = get_prompt(agent_name)
+
     constraints = state.get("constraints", {})
     destinations = constraints.get("destinations", [])
     city = destinations[0] if destinations else "the destination"
     activity_prefs = constraints.get("activity_preferences", [])
     dietary = constraints.get("dietary_restrictions", [])
 
-    # Search 4 categories in sequence (tool calls)
     categories = ["restaurant", "attraction", "hidden_gem", "activity"]
     keywords = {
         "restaurant": f"best restaurants {', '.join(dietary) if dietary else ''}".strip(),
@@ -40,43 +41,40 @@ async def experiences_node(state: TravelState) -> dict:
         "activity": f"things to do {', '.join(activity_prefs) if activity_prefs else ''}".strip(),
     }
 
-    all_experiences: list[dict] = []
-    messages = [
-        SystemMessage(content=system_prompt),
-        HumanMessage(
-            content=(
-                f"Find experiences in {city}.\n"
-                f"Activity preferences: {activity_prefs}\n"
-                f"Dietary restrictions: {dietary}\n\n"
-                f"Use search_places_tool for each of these categories: "
-                f"restaurant, attraction, hidden_gem, activity."
+    # create_react_agent handles the multi-call tool loop automatically
+    react_agent = create_react_agent(llm, tools, prompt=system_prompt)
+    agent_result = await react_agent.ainvoke({
+        "messages": [
+            HumanMessage(
+                content=(
+                    f"Find experiences in {city}.\n"
+                    f"Activity preferences: {activity_prefs}\n"
+                    f"Dietary restrictions: {dietary}\n\n"
+                    f"Search for ALL of these categories using search_places_tool: "
+                    f"restaurant, attraction, hidden_gem, activity. "
+                    f"Make a separate tool call for each category."
+                )
             )
-        ),
-    ]
+        ]
+    })
 
-    current_messages = list(messages)
-    for _ in range(8):  # allow multiple tool calls
-        response = await llm_with_tools.ainvoke(current_messages)
-        if not response.tool_calls:
-            break
-        current_messages.append(response)
-        for tc in response.tool_calls:
-            tool_fn = ToolRegistry.get(tc["name"])
-            result = await tool_fn.ainvoke(tc["args"])
+    # Extract results directly from ToolMessages in the conversation history
+    all_experiences: list[dict] = []
+    for msg in agent_result.get("messages", []):
+        if isinstance(msg, ToolMessage):
             try:
-                items = json.loads(str(result))
+                raw = msg.content if isinstance(msg.content, str) else str(msg.content)
+                items = json.loads(raw)
                 if isinstance(items, list):
                     all_experiences.extend(items)
             except Exception:
                 pass
-            current_messages.append(ToolMessage(content=str(result), tool_call_id=tc["id"]))
 
-    # If the LLM didn't call all 4 categories, fill with mocks
-    if len(all_experiences) < 8:
+    # Only backfill if we got ZERO results (complete API failure)
+    if len(all_experiences) == 0:
         from tools.places import _mock_places
         for cat in categories:
-            if not any(e.get("category") == cat for e in all_experiences):
-                all_experiences.extend(_mock_places(city, cat, keywords[cat]))
+            all_experiences.extend(_mock_places(city, cat, keywords[cat]))
 
     duration_ms = round((time.monotonic() - t0) * 1000)
     timings = dict(state.get("agent_timings", {}))

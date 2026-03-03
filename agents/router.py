@@ -11,16 +11,6 @@ from langgraph.types import Send
 
 from agents.state import TravelState
 
-
-# ---------------------------------------------------------------------------
-# Edge: START → memory_load → supervisor
-# ---------------------------------------------------------------------------
-
-def route_start(state: TravelState) -> str:
-    """Always load memory first."""
-    return "memory_load"
-
-
 # ---------------------------------------------------------------------------
 # Edge: supervisor → parallel fan-out
 # ---------------------------------------------------------------------------
@@ -50,7 +40,7 @@ def route_after_supervisor(state: TravelState) -> list[Send]:
 
 
 # ---------------------------------------------------------------------------
-# Edge: validator → budget/itinerary (revision loop) or booking
+# Edge: validator → itinerary (revision loop) or booking
 # ---------------------------------------------------------------------------
 
 MAX_REVISIONS = 2
@@ -59,7 +49,9 @@ MAX_REVISIONS = 2
 def route_after_validator(state: TravelState) -> str:
     """
     If the itinerary failed validation and we haven't hit the revision cap,
-    loop back to the budget node for a re-planning pass.
+    loop back to the itinerary node for a targeted re-planning pass.
+    Budget data (flights, hotels, experiences) is unchanged — only the
+    itinerary needs to be rebuilt using the validator's feedback.
     Otherwise proceed to booking.
     """
     validation_result = state.get("validation_result") or {}
@@ -67,15 +59,6 @@ def route_after_validator(state: TravelState) -> str:
     revision_count = state.get("revision_count", 0)
 
     if not passed and revision_count < MAX_REVISIONS:
-        return "budget_node"  # Re-enter at budget → itinerary → validator loop
+        return "itinerary_node"  # Re-plan itinerary using revision_feedback
 
     return "booking_node"
-
-
-# ---------------------------------------------------------------------------
-# Edge: booking → memory_save or END
-# ---------------------------------------------------------------------------
-
-def route_after_booking(state: TravelState) -> str:
-    """Always save memory after booking (success or failure)."""
-    return "memory_save"

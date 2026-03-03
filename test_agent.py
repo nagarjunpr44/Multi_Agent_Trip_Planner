@@ -83,7 +83,10 @@ async def main() -> None:
     days = itinerary.get("days", [])
     print(f"Itinerary days: {len(days)}")
     for day in days[:3]:
-        print(f"  Day {day.get('day_number')}: {day.get('theme')} — {len(day.get('activities', []))} activities")
+        all_acts = (
+            day.get("morning", []) + day.get("afternoon", []) + day.get("evening", [])
+        )
+        print(f"  Day {day.get('day_number')}: {day.get('theme') or day.get('city')} — {len(all_acts)} activities")
 
     val = state.get("validation_result") or {}
     print(f"\nValidation score: {val.get('score', 'N/A')}")
@@ -91,7 +94,18 @@ async def main() -> None:
 
     booking = state.get("booking_result") or {}
     print(f"\nBooking ref: {booking.get('booking_reference', 'N/A')}")
-    print(f"Total charged: ${booking.get('total_charged_usd', 'N/A')}")
+    print(f"Status: {booking.get('status', 'N/A')}")
+    print(f"Total estimated: ${booking.get('total_estimated_usd', 'N/A')}")
+    breakdown = booking.get("price_breakdown") or {}
+    if breakdown:
+        print(f"  Flights: ${breakdown.get('flights_usd', 0):.2f}")
+        print(f"  Hotel:   ${breakdown.get('hotel_usd', 0):.2f}")
+    instructions = booking.get("booking_instructions") or []
+    if instructions:
+        print("Booking instructions:")
+        for line in instructions[:6]:
+            if line:
+                print(f"  {line}")
 
     timings = state.get("agent_timings") or {}
     print(f"\nAgent timings (ms): {timings}")

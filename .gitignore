@@ -62,3 +62,5 @@ node_modules/
 .pytest_cache/
 .nox/
 .tox/
+
+ARCHITECTURE.md
