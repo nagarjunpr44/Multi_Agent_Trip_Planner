@@ -48,7 +48,7 @@ dependencies = [
     "chromadb>=0.6",
 
     # External APIs
-    "amadeus>=9.0",
+    "google-search-results>=2.4",
     "tavily-python>=0.7",
     "langchain-tavily>=0.1",
     "langchain-mcp-adapters>=0.1",

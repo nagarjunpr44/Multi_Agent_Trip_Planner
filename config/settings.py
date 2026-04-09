@@ -52,11 +52,7 @@ class ChromaSettings(BaseSettings):
 class APIKeySettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    amadeus_api_key: str = Field(default="", alias="AMADEUS_API_KEY")
-    amadeus_api_secret: str = Field(default="", alias="AMADEUS_API_SECRET")
-    amadeus_hostname: Literal["test", "production"] = Field(
-        default="test", alias="AMADEUS_HOSTNAME"
-    )
+    serpapi_api_key: str = Field(default="", alias="SERPAPI_API_KEY")
     openweathermap_api_key: str = Field(default="", alias="OPENWEATHERMAP_API_KEY")
     foursquare_api_key: str = Field(default="", alias="FOURSQUARE_API_KEY")
     google_maps_api_key: str = Field(default="", alias="GOOGLE_MAPS_API_KEY")
