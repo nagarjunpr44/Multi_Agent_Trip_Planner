@@ -9,30 +9,6 @@ from config.settings import get_settings
 OWM_BASE = "https://api.openweathermap.org/data/2.5"
 
 
-def _mock_weather(city: str, days: int) -> dict:
-    import random
-    conditions = ["Sunny", "Partly Cloudy", "Clear", "Overcast", "Light Rain"]
-    forecast = []
-    from datetime import date, timedelta
-    for i in range(min(days, 7)):
-        day = date.today() + timedelta(days=i)
-        forecast.append({
-            "date": day.isoformat(),
-            "condition": conditions[i % len(conditions)],
-            "temp_high_c": round(18 + i * 1.5, 1),
-            "temp_low_c": round(12 + i * 0.8, 1),
-            "humidity_pct": 60 + i * 3,
-            "precip_mm": round(i * 1.2, 1),
-        })
-    return {
-        "city": city,
-        "country": "N/A",
-        "forecast": forecast,
-        "summary": f"{city}: Mix of sun and clouds expected. Pleasant temperatures.",
-        "is_mock": True,
-    }
-
-
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=1, max=20),
@@ -111,13 +87,8 @@ async def get_weather_tool(city: str, forecast_days: int = 5) -> str:
     Returns:
         JSON string with weather forecast and summary
     """
-    s = get_settings()
-    if s.app.mock_fallback or not s.apis.openweathermap_api_key:
-        return str(_mock_weather(city, forecast_days))
-    try:
-        result = await _fetch_owm_weather(city, forecast_days)
-        return str(result)
-    except Exception as exc:
-        result = _mock_weather(city, forecast_days)
-        result["source"] = f"mock_fallback:{type(exc).__name__}"
-        return str(result)
+    if not s.apis.openweathermap_api_key:
+        raise ValueError("OPENWEATHERMAP_API_KEY is not configured.")
+        
+    result = await _fetch_owm_weather(city, forecast_days)
+    return str(result)

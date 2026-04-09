@@ -75,7 +75,7 @@ class AppSettings(BaseSettings):
     app_host: str = Field(default="0.0.0.0", alias="APP_HOST")
     app_port: int = Field(default=8000, alias="APP_PORT")
     app_log_level: str = Field(default="INFO", alias="APP_LOG_LEVEL")
-    mock_fallback: bool = Field(default=False, alias="MOCK_FALLBACK")
+
     mcp_enabled: bool = Field(default=False, alias="MCP_ENABLED")
     tool_max_retries: int = Field(default=3, alias="TOOL_MAX_RETRIES")
     tool_timeout_seconds: int = Field(default=30, alias="TOOL_TIMEOUT_SECONDS")

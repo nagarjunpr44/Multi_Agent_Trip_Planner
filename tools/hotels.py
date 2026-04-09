@@ -11,50 +11,6 @@ from config.settings import get_settings
 from schemas.hotel import HotelAmenity, HotelOption, HotelSearchParams, HotelSearchResult
 
 
-def _mock_hotels(params: HotelSearchParams) -> HotelSearchResult:
-    import random
-    nights = _count_nights(params.check_in, params.check_out)
-    tiers = [
-        ("Budget Inn Central", 1, 2, 65.0),
-        ("Comfort Stay Hotel", 3, 3, 120.0),
-        ("Grand Metropolitan", 4, 4, 210.0),
-        ("Luxury Palace Suites", 5, 5, 380.0),
-        ("Boutique Stay & Co", 3, 4, 155.0),
-    ]
-    options = []
-    for i, (name, stars, rating, ppn) in enumerate(tiers[: params.max_results]):
-        total = round(ppn * nights, 2)
-        options.append(
-            HotelOption(
-                id=f"MOCK-HTL-{i:03d}",
-                name=name,
-                address=f"{100 + i * 10} Main Street",
-                city=params.city_code,
-                country="N/A",
-                star_rating=stars,
-                price_per_night_usd=ppn,
-                total_price_usd=total,
-                num_nights=nights,
-                check_in=params.check_in,
-                check_out=params.check_out,
-                amenities=[
-                    HotelAmenity(name="WiFi", category="connectivity"),
-                    HotelAmenity(name="Breakfast", category="dining"),
-                ],
-                rating_score=float(rating),
-                is_refundable=i % 2 == 0,
-            )
-        )
-    options.sort(key=lambda x: x.price_per_night_usd)
-    return HotelSearchResult(
-        params=params,
-        options=options,
-        cheapest_per_night_usd=options[0].price_per_night_usd,
-        source="mock",
-        is_mock=True,
-    )
-
-
 def _count_nights(check_in: str, check_out: str) -> int:
     from datetime import date
     ci = date.fromisoformat(check_in)
@@ -179,15 +135,9 @@ async def search_hotels_tool(
         budget_per_night_max_usd=budget_per_night_max_usd if budget_per_night_max_usd > 0 else None,
         max_results=max_results,
     )
-    s = get_settings()
-    if s.app.mock_fallback or not s.apis.serpapi_api_key:
-        result = _mock_hotels(params)
-    else:
-        try:
-            result = await _search_serpapi_hotels(params)
-        except Exception as exc:
-            result = _mock_hotels(params)
-            result.source = f"mock_fallback:{type(exc).__name__}"
-            result.is_mock = True
+    if not s.apis.serpapi_api_key:
+        raise ValueError("SERPAPI_API_KEY is not configured.")
+        
+    result = await _search_serpapi_hotels(params)
 
     return result.model_dump_json()

@@ -12,43 +12,6 @@ from config.settings import get_settings
 from schemas.flight import FlightOption, FlightSearchParams, FlightSearchResult, FlightSegment
 
 
-def _mock_flights(params: FlightSearchParams) -> FlightSearchResult:
-    from datetime import datetime, timedelta
-    dep = datetime.strptime(params.departure_date, "%Y-%m-%d")
-    options = [
-        FlightOption(
-            id=f"MOCK-FL-00{i}",
-            segments=[
-                FlightSegment(
-                    departure_airport=params.origin,
-                    arrival_airport=params.destination,
-                    departure_time=dep.replace(hour=6 + i * 4),
-                    arrival_time=dep.replace(hour=6 + i * 4) + timedelta(hours=13),
-                    carrier_code=["AA", "UA", "DL", "NH", "JL"][i],
-                    flight_number=f"{['AA', 'UA', 'DL', 'NH', 'JL'][i]}{100 + i * 37}",
-                    duration_minutes=780 + i * 30,
-                    cabin_class=params.travel_class,
-                )
-            ],
-            total_duration_minutes=780 + i * 30,
-            num_stops=i % 2,
-            price_usd=round(450 + i * 120 + (0 if i % 2 == 0 else 80), 2),
-            airline=["American Airlines", "United", "Delta", "All Nippon", "Japan Airlines"][i],
-            is_refundable=i % 3 == 0,
-            baggage_included=i % 2 == 0,
-        )
-        for i in range(params.max_results)
-    ]
-    options.sort(key=lambda x: x.price_usd)
-    return FlightSearchResult(
-        params=params,
-        options=options,
-        cheapest_usd=options[0].price_usd,
-        fastest_minutes=min(o.total_duration_minutes for o in options),
-        source="mock",
-        is_mock=True,
-    )
-
 
 @retry(
     stop=stop_after_attempt(3),
@@ -195,15 +158,9 @@ async def search_flights_tool(
         travel_class=travel_class,
         max_results=max_results,
     )
-    s = get_settings()
-    if s.app.mock_fallback or not s.apis.serpapi_api_key:
-        result = _mock_flights(params)
-    else:
-        try:
-            result = await _search_serpapi_flights(params)
-        except Exception as exc:
-            result = _mock_flights(params)
-            result.source = f"mock_fallback:{type(exc).__name__}"
-            result.is_mock = True
+    if not s.apis.serpapi_api_key:
+        raise ValueError("SERPAPI_API_KEY is not configured.")
+        
+    result = await _search_serpapi_flights(params)
 
     return result.model_dump_json()

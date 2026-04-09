@@ -65,15 +65,11 @@ async def convert_currency_tool(
     to_currency = to_currency.upper()
     s = get_settings()
 
-    rates = MOCK_RATES.copy()
-    is_mock = True
-
-    if not s.app.mock_fallback and s.apis.exchange_rates_api_key:
-        try:
-            rates = await _fetch_live_rates("USD", s.apis.exchange_rates_api_key)
-            is_mock = False
-        except Exception:
-            pass  # fall back to mock rates
+    if not s.apis.exchange_rates_api_key:
+        raise ValueError("EXCHANGE_RATES_API_KEY is not configured.")
+        
+    rates = await _fetch_live_rates("USD", s.apis.exchange_rates_api_key)
+    is_mock = False
 
     # Convert via USD as base
     from_rate = rates.get(from_currency, 1.0)

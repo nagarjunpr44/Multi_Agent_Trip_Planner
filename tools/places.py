@@ -25,49 +25,6 @@ _FSQ_CATEGORIES: dict[str, str] = {
 _FSQ_FIELDS = "fsq_id,name,categories,location,rating,price,stats,geocodes,description,tel,website"
 
 
-def _mock_places(city: str, category: str, query: str) -> list[dict]:
-    templates = {
-        "restaurant": [
-            {"name": f"The {city} Kitchen", "category": "restaurant", "cuisine_type": "Local", "price_level": 2, "rating": 4.4},
-            {"name": "Sakura Bistro", "category": "restaurant", "cuisine_type": "Fusion", "price_level": 3, "rating": 4.2},
-            {"name": "Street Food Heaven", "category": "restaurant", "cuisine_type": "Street Food", "price_level": 1, "rating": 4.6},
-            {"name": "The Grand Dining Room", "category": "restaurant", "cuisine_type": "Fine Dining", "price_level": 4, "rating": 4.8},
-            {"name": "Corner Noodle Bar", "category": "restaurant", "cuisine_type": "Asian", "price_level": 1, "rating": 4.3},
-        ],
-        "attraction": [
-            {"name": f"{city} National Museum", "category": "attraction", "price_level": 2, "rating": 4.5},
-            {"name": f"{city} Old Town", "category": "attraction", "price_level": 1, "rating": 4.7},
-            {"name": f"{city} Viewpoint", "category": "attraction", "price_level": 1, "rating": 4.6},
-            {"name": f"{city} Art Gallery", "category": "attraction", "price_level": 2, "rating": 4.3},
-            {"name": f"{city} Botanical Garden", "category": "attraction", "price_level": 1, "rating": 4.4},
-        ],
-        "hidden_gem": [
-            {"name": "Local Artisan Market", "category": "hidden_gem", "price_level": 1, "rating": 4.7},
-            {"name": "The Secret Rooftop Bar", "category": "hidden_gem", "price_level": 2, "rating": 4.8},
-            {"name": "Old Quarter Alley Walk", "category": "hidden_gem", "price_level": 1, "rating": 4.9},
-        ],
-        "activity": [
-            {"name": f"{city} Cooking Class", "category": "activity", "price_level": 3, "rating": 4.9},
-            {"name": f"{city} Walking Tour", "category": "activity", "price_level": 2, "rating": 4.6},
-            {"name": f"Day Trip from {city}", "category": "activity", "price_level": 2, "rating": 4.5},
-        ],
-    }
-    base = templates.get(category, templates["attraction"])
-    return [
-        Experience(
-            name=p["name"],
-            category=p["category"],
-            address=f"123 Example St, {city}",
-            city=city,
-            rating=p.get("rating"),
-            price_level=p.get("price_level"),
-            description=f"A highly recommended {p['category']} in {city}.",
-            cuisine_type=p.get("cuisine_type"),
-        ).model_dump()
-        for p in base
-    ]
-
-
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=1, max=20),
@@ -146,13 +103,9 @@ async def search_places_tool(
     Returns:
         JSON list of Experience objects
     """
-    s = get_settings()
-    if s.app.mock_fallback or not s.apis.foursquare_api_key:
-        results = _mock_places(city, category, keyword or category)
-    else:
-        try:
-            results = await _fetch_foursquare_places(city, category, keyword or category)
-        except Exception:
-            results = _mock_places(city, category, keyword or category)
+    if not s.apis.foursquare_api_key:
+        raise ValueError("FOURSQUARE_API_KEY is not configured.")
+        
+    results = await _fetch_foursquare_places(city, category, keyword or category)
 
     return json.dumps(results)

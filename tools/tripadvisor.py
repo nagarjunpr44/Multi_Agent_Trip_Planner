@@ -11,25 +11,6 @@ _BASE_URL = "https://api.content.tripadvisor.com/api/v1"
 _TIMEOUT = 10.0
 
 
-def _mock_tripadvisor(destination: str, category: str) -> dict:
-    return {
-        "destination": destination,
-        "category": category,
-        "location_id": "mock-id",
-        "name": destination,
-        "rating": 4.5,
-        "review_count": 1200,
-        "description": f"{destination} is a vibrant destination known for its rich culture and attractions.",
-        "top_attractions": [
-            {"name": f"{destination} Old Town", "rating": 4.7, "review_count": 850},
-            {"name": f"{destination} Museum", "rating": 4.4, "review_count": 620},
-            {"name": f"{destination} Central Park", "rating": 4.3, "review_count": 490},
-        ],
-        "source": "mock",
-        "is_mock": True,
-    }
-
-
 async def _fetch_tripadvisor(destination: str, category: str, api_key: str) -> dict:
     """
     Two-step TripAdvisor Content API call:
@@ -113,14 +94,8 @@ async def search_tripadvisor_tool(destination: str, category: str = "geos") -> s
     Returns:
         JSON with location details, rating, review count, and top nearby attractions
     """
-    s = get_settings()
-    if s.app.mock_fallback or not s.apis.tripadvisor_api_key:
-        return json.dumps(_mock_tripadvisor(destination, category))
+    if not s.apis.tripadvisor_api_key:
+        raise ValueError("TRIPADVISOR_API_KEY is not configured.")
 
-    try:
-        result = await _fetch_tripadvisor(destination, category, s.apis.tripadvisor_api_key)
-        return json.dumps(result)
-    except Exception as exc:
-        fallback = _mock_tripadvisor(destination, category)
-        fallback["error"] = str(exc)
-        return json.dumps(fallback)
+    result = await _fetch_tripadvisor(destination, category, s.apis.tripadvisor_api_key)
+    return json.dumps(result)
