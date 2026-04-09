@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import json
+from typing import Any
+
+import httpx
 from langchain_core.tools import tool
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -63,57 +67,70 @@ def _count_nights(check_in: str, check_out: str) -> int:
     wait=wait_exponential(multiplier=1, min=2, max=30),
     reraise=True,
 )
-async def _search_amadeus_hotels(params: HotelSearchParams) -> HotelSearchResult:
-    from amadeus import Client
+async def _search_serpapi_hotels(params: HotelSearchParams) -> HotelSearchResult:
     s = get_settings()
-    amadeus = Client(
-        client_id=s.apis.amadeus_api_key,
-        client_secret=s.apis.amadeus_api_secret,
-        hostname=s.apis.amadeus_hostname,
-    )
     nights = _count_nights(params.check_in, params.check_out)
+    
+    q_params: dict[str, Any] = {
+        "engine": "google_hotels",
+        "q": params.city_code,  # SerpApi handles City names or codes well in 'q'
+        "check_in_date": params.check_in,
+        "check_out_date": params.check_out,
+        "adults": params.num_adults,
+        "currency": "USD",
+        "api_key": s.apis.serpapi_api_key,
+    }
+    
+    # Optional filters
+    if params.star_rating_min and params.star_rating_min > 0:
+        q_params["hotel_classes"] = params.star_rating_min
+    
+    async with httpx.AsyncClient() as client:
+        response = await client.get("https://serpapi.com/search", params=q_params, timeout=s.app.tool_timeout_seconds)
+        response.raise_for_status()
+        data = response.json()
 
-    # Step 1: Get hotel list for city
-    hotel_list = amadeus.reference_data.locations.hotels.by_city.get(
-        cityCode=params.city_code
-    )
-    hotel_ids = [h["hotelId"] for h in (hotel_list.data or [])[:20]]
-    if not hotel_ids:
-        return _mock_hotels(params)
-
-    # Step 2: Get offers
-    offers_response = amadeus.shopping.hotel_offers_search.get(
-        hotelIds=",".join(hotel_ids[:10]),
-        checkInDate=params.check_in,
-        checkOutDate=params.check_out,
-        adults=params.num_adults,
-        currencyCode="USD",
-        bestRateOnly=True,
-    )
-    raw = offers_response.data or []
+    raw_properties = data.get("properties", [])
     options = []
-    for item in raw[: params.max_results]:
+    
+    for i, prop in enumerate(raw_properties[:params.max_results]):
         try:
-            hotel = item.get("hotel", {})
-            offer = item.get("offers", [{}])[0]
-            ppn = float(offer.get("price", {}).get("base", 0))
-            amenities_raw = hotel.get("amenities", [])
+            ppn = prop.get("rate_per_night", {}).get("extracted_lowest", 0.0)
+            if ppn == 0.0:
+                continue
+                
+            # Filter by budget if provided
+            if params.budget_per_night_max_usd and ppn > params.budget_per_night_max_usd:
+                continue
+
+            amenities_raw = prop.get("amenities", [])
+            amenities = []
+            for a in amenities_raw[:5]:
+                if isinstance(a, str):
+                    amenities.append(HotelAmenity(name=a))
+                elif isinstance(a, dict) and "amenity" in a:
+                    amenities.append(HotelAmenity(name=a["amenity"]))
+            
             options.append(
                 HotelOption(
-                    id=item.get("hotel", {}).get("hotelId", ""),
-                    name=hotel.get("name", "Unknown Hotel"),
-                    address=hotel.get("address", {}).get("lines", [""])[0],
-                    city=hotel.get("address", {}).get("cityName", params.city_code),
-                    country=hotel.get("address", {}).get("countryCode", ""),
-                    star_rating=int(hotel.get("rating", 3)),
-                    price_per_night_usd=ppn,
-                    total_price_usd=round(ppn * nights, 2),
+                    id=prop.get("property_token", f"htl-{i}"),
+                    name=prop.get("name", "Unknown Hotel"),
+                    address=prop.get("description", "Address not provided")[:100],  # Brief description fallback
+                    city=params.city_code,
+                    country="Unknown",
+                    star_rating=int(prop.get("hotel_class", params.star_rating_min or 3)),
+                    price_per_night_usd=float(ppn),
+                    total_price_usd=prop.get("total_rate", {}).get("extracted_lowest", round(ppn * nights, 2)),
                     num_nights=nights,
                     check_in=params.check_in,
                     check_out=params.check_out,
-                    amenities=[HotelAmenity(name=a) for a in amenities_raw[:5]],
-                    latitude=hotel.get("latitude"),
-                    longitude=hotel.get("longitude"),
+                    amenities=amenities,
+                    rating_score=float(prop.get("overall_rating", 0.0)),
+                    num_reviews=int(prop.get("reviews", 0)),
+                    booking_url=prop.get("link", ""),
+                    latitude=prop.get("gps_coordinates", {}).get("latitude"),
+                    longitude=prop.get("gps_coordinates", {}).get("longitude"),
+                    image_url=prop.get("images", [{"thumbnail": ""}])[0].get("thumbnail") if prop.get("images") else None
                 )
             )
         except Exception:
@@ -124,7 +141,7 @@ async def _search_amadeus_hotels(params: HotelSearchParams) -> HotelSearchResult
         params=params,
         options=options,
         cheapest_per_night_usd=options[0].price_per_night_usd if options else None,
-        source="amadeus",
+        source="serpapi",
         is_mock=False,
     )
 
@@ -139,10 +156,10 @@ async def search_hotels_tool(
     budget_per_night_max_usd: float = 0.0,
     max_results: int = 5,
 ) -> str:
-    """Search for hotel accommodations in a city.
+    """Search for hotel accommodations in a city using Google Hotels via SerpApi.
 
     Args:
-        city_code: IATA city code (e.g. TYO, PAR, LON, NYC)
+        city_code: IATA city code or city name (e.g. TYO, Paris, NYC)
         check_in: Check-in date YYYY-MM-DD
         check_out: Check-out date YYYY-MM-DD
         num_adults: Number of adult guests
@@ -163,11 +180,11 @@ async def search_hotels_tool(
         max_results=max_results,
     )
     s = get_settings()
-    if s.app.mock_fallback or not s.apis.amadeus_api_key:
+    if s.app.mock_fallback or not s.apis.serpapi_api_key:
         result = _mock_hotels(params)
     else:
         try:
-            result = await _search_amadeus_hotels(params)
+            result = await _search_serpapi_hotels(params)
         except Exception as exc:
             result = _mock_hotels(params)
             result.source = f"mock_fallback:{type(exc).__name__}"
