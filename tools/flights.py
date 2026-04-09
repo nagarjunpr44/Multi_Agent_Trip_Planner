@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from typing import Any
 
+import httpx
 from langchain_core.tools import tool
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -53,66 +55,100 @@ def _mock_flights(params: FlightSearchParams) -> FlightSearchResult:
     wait=wait_exponential(multiplier=1, min=2, max=30),
     reraise=True,
 )
-async def _search_amadeus_flights(params: FlightSearchParams) -> FlightSearchResult:
-    from amadeus import Client, ResponseError
+async def _search_serpapi_flights(params: FlightSearchParams) -> FlightSearchResult:
     s = get_settings()
-    amadeus = Client(
-        client_id=s.apis.amadeus_api_key,
-        client_secret=s.apis.amadeus_api_secret,
-        hostname=s.apis.amadeus_hostname,
-    )
-    kwargs: dict[str, Any] = {
-        "originLocationCode": params.origin,
-        "destinationLocationCode": params.destination,
-        "departureDate": params.departure_date,
-        "adults": params.num_adults,
-        "travelClass": params.travel_class,
-        "max": params.max_results,
-        "currencyCode": "USD",
+    api_key = s.apis.serpapi_api_key
+    
+    # Class mapping for Serpapi
+    class_map = {
+        "ECONOMY": 1,
+        "PREMIUM_ECONOMY": 2,
+        "BUSINESS": 3,
+        "FIRST": 4
     }
+    travel_class = class_map.get(params.travel_class.upper(), 1)
+    
+    q_params = {
+        "engine": "google_flights",
+        "departure_id": params.origin,
+        "arrival_id": params.destination,
+        "outbound_date": params.departure_date,
+        "currency": "USD",
+        "adults": params.num_adults,
+        "travel_class": travel_class,
+        "api_key": api_key,
+    }
+    
     if params.return_date:
-        kwargs["returnDate"] = params.return_date
-
-    response = amadeus.shopping.flight_offers_search.get(**kwargs)
-    raw_offers = response.data or []
+        q_params["return_date"] = params.return_date
+        q_params["type"] = 1 # Round trip
+    else:
+        q_params["type"] = 2 # One way
+        
+    async with httpx.AsyncClient() as client:
+        response = await client.get("https://serpapi.com/search", params=q_params, timeout=s.app.tool_timeout_seconds)
+        response.raise_for_status()
+        data = response.json()
+        
     options = []
-    for offer in raw_offers:
+    
+    # Try fetching best_flights, then other_flights
+    raw_flights = data.get("best_flights", []) + data.get("other_flights", [])
+    
+    for i, flight in enumerate(raw_flights[:params.max_results]):
         try:
-            itineraries = offer.get("itineraries", [])
+            segments_data = flight.get("flights", [])
             all_segments = []
-            total_duration = 0
-            for itin in itineraries:
-                for seg in itin.get("segments", []):
-                    dep_obj = seg["departure"]
-                    arr_obj = seg["arrival"]
-                    from datetime import datetime as dt
-                    all_segments.append(
-                        FlightSegment(
-                            departure_airport=dep_obj["iataCode"],
-                            arrival_airport=arr_obj["iataCode"],
-                            departure_time=dt.fromisoformat(dep_obj["at"]),
-                            arrival_time=dt.fromisoformat(arr_obj["at"]),
-                            carrier_code=seg.get("carrierCode", ""),
-                            flight_number=f"{seg.get('carrierCode','')}{seg.get('number','')}",
-                            duration_minutes=_parse_duration(itin.get("duration", "PT0H")),
-                            cabin_class=params.travel_class,
-                        )
+            
+            for seg in segments_data:
+                dep_time_str = seg.get("departure_airport", {}).get("time", "")
+                arr_time_str = seg.get("arrival_airport", {}).get("time", "")
+                
+                # Serpapi times format: "2026-04-12 10:00"
+                # If there's no year, fallback to just combining
+                try:
+                    dep_time = datetime.strptime(dep_time_str, "%Y-%m-%d %H:%M")
+                except:
+                    dep_time = datetime.strptime(f"{params.departure_date} {dep_time_str.split(' ')[-1]}", "%Y-%m-%d %H:%M")
+                    
+                try:
+                    arr_time = datetime.strptime(arr_time_str, "%Y-%m-%d %H:%M")
+                except:
+                    arr_time = datetime.strptime(f"{params.departure_date} {arr_time_str.split(' ')[-1]}", "%Y-%m-%d %H:%M")
+                
+                all_segments.append(
+                    FlightSegment(
+                        departure_airport=seg.get("departure_airport", {}).get("id", params.origin),
+                        arrival_airport=seg.get("arrival_airport", {}).get("id", params.destination),
+                        departure_time=dep_time,
+                        arrival_time=arr_time,
+                        carrier_code=seg.get("airline", "Unknown")[:2].upper(),
+                        flight_number=seg.get("flight_number", "000"),
+                        duration_minutes=seg.get("duration", 0),
+                        cabin_class=params.travel_class,
                     )
-                total_duration += _parse_duration(itin.get("duration", "PT0H"))
-            num_stops = max(0, len(all_segments) - 1)
-            price = float(offer.get("price", {}).get("grandTotal", 0))
-            carrier = offer.get("validatingAirlineCodes", [""])[0]
+                )
+            
+            price = flight.get("price", 0.0)
+            if not isinstance(price, (int, float)):
+                # Clean "$500" strings just in case
+                import re
+                prices = re.findall(r"\d+", str(price))
+                price = float(prices[0]) if prices else 0.0
+                
             options.append(
                 FlightOption(
-                    id=offer.get("id", ""),
+                    id=flight.get("booking_token", f"serp-{i}"),
                     segments=all_segments,
-                    total_duration_minutes=total_duration,
-                    num_stops=num_stops,
-                    price_usd=price,
-                    airline=carrier,
+                    total_duration_minutes=flight.get("total_duration", 0),
+                    num_stops=len(all_segments) - 1,
+                    price_usd=float(price),
+                    airline=flight.get("airline", "Multiple Airlines") or "Multiple Airlines",
+                    booking_url=data.get("search_metadata", {}).get("google_flights_url", ""),
+                    is_refundable=False,
                 )
             )
-        except Exception:
+        except Exception as e:
             continue
 
     options.sort(key=lambda x: x.price_usd)
@@ -121,17 +157,9 @@ async def _search_amadeus_flights(params: FlightSearchParams) -> FlightSearchRes
         options=options,
         cheapest_usd=options[0].price_usd if options else None,
         fastest_minutes=min(o.total_duration_minutes for o in options) if options else None,
-        source="amadeus",
+        source="serpapi",
         is_mock=False,
     )
-
-
-def _parse_duration(iso: str) -> int:
-    """Parse ISO 8601 duration like PT13H45M → minutes."""
-    import re
-    h = int(re.search(r"(\d+)H", iso).group(1)) if "H" in iso else 0
-    m = int(re.search(r"(\d+)M", iso).group(1)) if "M" in iso else 0
-    return h * 60 + m
 
 
 @tool
@@ -144,7 +172,7 @@ async def search_flights_tool(
     travel_class: str = "ECONOMY",
     max_results: int = 5,
 ) -> str:
-    """Search for flight options between two airports.
+    """Search for flight options between two airports using Google Flights via SerpApi.
 
     Args:
         origin: IATA airport code (e.g. JFK, LAX, LHR)
@@ -152,7 +180,7 @@ async def search_flights_tool(
         departure_date: Departure date in YYYY-MM-DD format
         return_date: Return date in YYYY-MM-DD format (empty for one-way)
         num_adults: Number of adult passengers
-        travel_class: ECONOMY | BUSINESS | FIRST
+        travel_class: ECONOMY | PREMIUM_ECONOMY | BUSINESS | FIRST
         max_results: Maximum number of options to return
 
     Returns:
@@ -168,11 +196,11 @@ async def search_flights_tool(
         max_results=max_results,
     )
     s = get_settings()
-    if s.app.mock_fallback or not s.apis.amadeus_api_key:
+    if s.app.mock_fallback or not s.apis.serpapi_api_key:
         result = _mock_flights(params)
     else:
         try:
-            result = await _search_amadeus_flights(params)
+            result = await _search_serpapi_flights(params)
         except Exception as exc:
             result = _mock_flights(params)
             result.source = f"mock_fallback:{type(exc).__name__}"
