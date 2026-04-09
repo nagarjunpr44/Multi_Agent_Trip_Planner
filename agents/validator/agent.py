@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 
 from langchain_core.messages import HumanMessage, SystemMessage
+from langgraph.types import Command
 
 from agents.llm_factory import get_llm_for_agent
 from agents.state import TravelState
@@ -75,12 +76,21 @@ async def validator_node(state: TravelState) -> dict:
             f"  Overall:          {result.score:.2f} (need ≥ 0.75 to pass)"
         )
 
-    return {
+    update_state = {
         "validation_result": result.model_dump(),
         "revision_count": new_revision_count,
         "revision_feedback": revision_feedback,
         "agent_timings": timings,
     }
+
+    # LangGraph 1.1: Direct type-safe routing via Command
+    MAX_REVISIONS = 2
+    goto_node = "itinerary_node" if not result.passed and revision_count < MAX_REVISIONS else "booking_node"
+
+    return Command(
+        goto=goto_node,
+        update=update_state,
+    )
 
 
 def _build_validation_prompt(

@@ -4,7 +4,7 @@ import operator
 from typing import Annotated, Any, Literal
 
 from langchain_core.messages import BaseMessage
-from langgraph.graph.message import add_messages
+from langgraph.graph import MessagesState
 from typing_extensions import TypedDict
 
 
@@ -14,15 +14,12 @@ def _merge_dicts(a: dict, b: dict) -> dict:
 
 
 
-class TravelState(TypedDict):
+class TravelState(MessagesState):
     # ── Input ───────────────────────────────────────────────────────────────
     session_id: str
     user_query: str
     constraints: dict[str, Any]  # serialized TripConstraints
     mode: Literal["autonomous", "hitl"]
-
-    # ── Conversation history (LangGraph reducer merges lists) ────────────────
-    messages: Annotated[list[BaseMessage], add_messages]
 
     # ── Supervisor plan ──────────────────────────────────────────────────────
     execution_plan: list[str]

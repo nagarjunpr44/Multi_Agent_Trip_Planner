@@ -47,7 +47,7 @@ from agents.hotels.agent import hotels_node
 from agents.itinerary.agent import itinerary_node
 from agents.memory.agent import memory_load_node, memory_save_node
 from agents.research.agent import research_node
-from agents.router import route_after_supervisor, route_after_validator
+from agents.router import route_after_supervisor
 from agents.state import TravelState
 from agents.supervisor.agent import supervisor_node
 from agents.validator.agent import validator_node
@@ -107,16 +107,8 @@ def _build_graph(checkpointer: Any) -> Any:
         # path_map not needed when returning Send() objects
     )
 
-    # Validator → itinerary revision loop (targeted re-plan) or booking
-    # Budget is NOT re-run on revision — flight/hotel/experience data is unchanged.
-    builder.add_conditional_edges(
-        "validator_node",
-        route_after_validator,
-        {
-            "itinerary_node": "itinerary_node",
-            "booking_node": "booking_node",
-        },
-    )
+    # Validator dynamically routes itself to itinerary_node or booking_node 
+    # natively using the 1.1 Command object returned. No edge declarations needed.
 
     # ── Compile ────────────────────────────────────────────────────────────
     compile_kwargs: dict[str, Any] = {"checkpointer": checkpointer}

@@ -39,26 +39,4 @@ def route_after_supervisor(state: TravelState) -> list[Send]:
     return [Send(node_name, state) for node_name in node_names]
 
 
-# ---------------------------------------------------------------------------
-# Edge: validator → itinerary (revision loop) or booking
-# ---------------------------------------------------------------------------
 
-MAX_REVISIONS = 2
-
-
-def route_after_validator(state: TravelState) -> str:
-    """
-    If the itinerary failed validation and we haven't hit the revision cap,
-    loop back to the itinerary node for a targeted re-planning pass.
-    Budget data (flights, hotels, experiences) is unchanged — only the
-    itinerary needs to be rebuilt using the validator's feedback.
-    Otherwise proceed to booking.
-    """
-    validation_result = state.get("validation_result") or {}
-    passed = validation_result.get("passed", False)
-    revision_count = state.get("revision_count", 0)
-
-    if not passed and revision_count < MAX_REVISIONS:
-        return "itinerary_node"  # Re-plan itinerary using revision_feedback
-
-    return "booking_node"
