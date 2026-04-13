@@ -158,8 +158,9 @@ async def search_flights_tool(
         travel_class=travel_class,
         max_results=max_results,
     )
+    s = get_settings()
     if not s.apis.serpapi_api_key:
-        raise ValueError("SERPAPI_API_KEY is not configured.")
+        return json.dumps({"error": "SERPAPI_API_KEY is not configured. Cannot search flights."})
         
     result = await _search_serpapi_flights(params)
 

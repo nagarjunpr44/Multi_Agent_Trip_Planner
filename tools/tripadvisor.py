@@ -94,8 +94,9 @@ async def search_tripadvisor_tool(destination: str, category: str = "geos") -> s
     Returns:
         JSON with location details, rating, review count, and top nearby attractions
     """
+    s = get_settings()
     if not s.apis.tripadvisor_api_key:
-        raise ValueError("TRIPADVISOR_API_KEY is not configured.")
+        return json.dumps({"error": "TRIPADVISOR_API_KEY is not configured. Cannot fetch destination insights."})
 
     result = await _fetch_tripadvisor(destination, category, s.apis.tripadvisor_api_key)
     return json.dumps(result)

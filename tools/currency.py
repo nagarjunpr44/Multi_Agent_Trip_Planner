@@ -66,7 +66,7 @@ async def convert_currency_tool(
     s = get_settings()
 
     if not s.apis.exchange_rates_api_key:
-        raise ValueError("EXCHANGE_RATES_API_KEY is not configured.")
+        return json.dumps({"error": "EXCHANGE_RATES_API_KEY is not configured. Cannot compute live currency rate."})
         
     rates = await _fetch_live_rates("USD", s.apis.exchange_rates_api_key)
     is_mock = False

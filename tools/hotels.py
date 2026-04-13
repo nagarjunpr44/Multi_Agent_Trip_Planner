@@ -135,8 +135,9 @@ async def search_hotels_tool(
         budget_per_night_max_usd=budget_per_night_max_usd if budget_per_night_max_usd > 0 else None,
         max_results=max_results,
     )
+    s = get_settings()
     if not s.apis.serpapi_api_key:
-        raise ValueError("SERPAPI_API_KEY is not configured.")
+        return json.dumps({"error": "SERPAPI_API_KEY is not configured. Cannot search hotels."})
         
     result = await _search_serpapi_hotels(params)
 

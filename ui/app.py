@@ -34,7 +34,7 @@ page = st.sidebar.radio(
 st.sidebar.divider()
 api_url = st.sidebar.text_input(
     "API URL",
-    value=os.getenv("API_URL", "http://localhost:8000"),
+    value=os.getenv("FASTAPI_BASE_URL", "http://localhost:8001"),
     help="AgenticTripPlanner FastAPI backend URL",
 )
 # Persist across pages via session state

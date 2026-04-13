@@ -103,8 +103,9 @@ async def search_places_tool(
     Returns:
         JSON list of Experience objects
     """
+    s = get_settings()
     if not s.apis.foursquare_api_key:
-        raise ValueError("FOURSQUARE_API_KEY is not configured.")
+        return json.dumps({"error": "FOURSQUARE_API_KEY is not configured. Cannot search places."})
         
     results = await _fetch_foursquare_places(city, category, keyword or category)
 

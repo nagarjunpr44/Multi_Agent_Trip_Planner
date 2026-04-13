@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 import httpx
 from langchain_core.tools import tool
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -87,8 +89,9 @@ async def get_weather_tool(city: str, forecast_days: int = 5) -> str:
     Returns:
         JSON string with weather forecast and summary
     """
+    s = get_settings()
     if not s.apis.openweathermap_api_key:
-        raise ValueError("OPENWEATHERMAP_API_KEY is not configured.")
+        return json.dumps({"error": "OPENWEATHERMAP_API_KEY is not configured. Cannot fetch weather."})
         
     result = await _fetch_owm_weather(city, forecast_days)
     return str(result)
