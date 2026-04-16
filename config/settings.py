@@ -59,6 +59,7 @@ class APIKeySettings(BaseSettings):
     tavily_api_key: str = Field(default="", alias="TAVILY_API_KEY")
     exchange_rates_api_key: str = Field(default="", alias="EXCHANGE_RATES_API_KEY")
     tripadvisor_api_key: str = Field(default="", alias="TRIPADVISOR_API_KEY")
+    firecrawl_api_key: str = Field(default="", alias="FIRECRAWL_API_KEY")
     langsmith_api_key: str = Field(default="", alias="LANGSMITH_API_KEY")
     langsmith_project: str = Field(
         default="agentictripplanner", alias="LANGSMITH_PROJECT"

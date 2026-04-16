@@ -720,3 +720,24 @@ AgenticTripPlanner/
     └── workspace/                  # Temporary workspace
 ```
 
+---
+
+## April 2026 Project Updates & Report Analysis
+
+### Advantages
+- **Asynchronous & Parallel Execution**: LangGraph allows the slow API calls (Flights, Hotels, Places) to happen in parallel, significantly improving the processing time.
+- **Strong Resilience**: It incorporates an exponential retry mechanism for API tools alongside robust Mock data fallback logic, so the app remains entirely functional during API outages.
+- **Production Preparedness**: Implements streaming via Redis pub/sub and Server-Sent Events, complete schema verification via Pydantic v2, and observability/tracing with LangSmith and Prometheus.
+
+### Identified Flaws
+- **Fatal API Dependency (Amadeus Shutdown)**: The project currently relies on Amadeus's self-service developer portal. **Critically, as of March 2026, Amadeus has paused new registrations and is fully decommissioning the self-service web portal by July 17, 2026**. Without an enterprise contract, the Flight and Hotel agents will soon permanently fail.
+- **Booking Agent is "Dummy"**: The booking agent builds a "ready-to-book" packet but hasn't integrated with Duffel or an equivalent OTA booking integration to finalize travel purchases automatically.
+
+### Recommended April 2026 Fixes & Integrations
+As of **April 2026**, several critical updates have occurred in the software ecosystem which this project must adapt to:
+1. **Amadeus Complete API Migration**: The project MUST migrate its Flight/Hotel capabilities to alternative services like **Duffel** or **Skyscanner APIs** immediately to continue functioning past July 17, 2026.
+2. **LangGraph 1.1 Upgrade**: LangGraph had a v1.1 update in April 2026 featuring highly improved type-safety (type-safe streaming configurations and coercion via Dataclass support). You can upgrade the `StateGraph` definition strictly with these safety constraints to guarantee state integrity.
+3. **LangSmith Fleet (Agent Builder)**: LangChain rebranded Agent Builder to **LangSmith Fleet**, enabling robust enterprise governance, cross-session agent sharing, and permission handling.
+4. **Deep Agents v0.5.0 Integration**: The parallel agents (Research, Flights, Hotels) could be refactored into **Async Subagents** running under Deep Agents v0.5, utilizing background workers.
+5. **Real OTA Bookings**: Future integration should connect the system to **Duffel API** to convert the generated `ready-to-book` states directly into live purchasable carts via Stripe links.
+

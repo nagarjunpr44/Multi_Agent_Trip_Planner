@@ -71,14 +71,7 @@ async def flights_node(state: TravelState) -> dict:
         flight_data = json.loads(raw_result)
         flight_result = FlightSearchResult.model_validate(flight_data)
     except Exception:
-        from schemas.flight import FlightSearchParams
-        params = FlightSearchParams(
-            origin=origin[:3].upper() or "JFK",
-            destination=dest[:3].upper() or "NRT",
-            departure_date=departure_date or "2026-06-01",
-        )
-        from tools.flights import _mock_flights
-        flight_result = _mock_flights(params)
+        flight_result = FlightSearchResult(options=[])
 
     duration_ms = round((time.monotonic() - t0) * 1000)
     timings = dict(state.get("agent_timings", {}))

@@ -72,9 +72,7 @@ async def experiences_node(state: TravelState) -> dict:
 
     # Only backfill if we got ZERO results (complete API failure)
     if len(all_experiences) == 0:
-        from tools.places import _mock_places
-        for cat in categories:
-            all_experiences.extend(_mock_places(city, cat, keywords[cat]))
+        pass # Graceful degradation if no API results are found
 
     duration_ms = round((time.monotonic() - t0) * 1000)
     timings = dict(state.get("agent_timings", {}))

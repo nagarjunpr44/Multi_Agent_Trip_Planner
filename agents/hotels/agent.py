@@ -64,15 +64,7 @@ async def hotels_node(state: TravelState) -> dict:
         hotel_data = json.loads(raw_result)
         hotel_result = HotelSearchResult.model_validate(hotel_data)
     except Exception:
-        from schemas.hotel import HotelSearchParams
-        from tools.hotels import _mock_hotels
-        params = HotelSearchParams(
-            city_code=city[:3].upper() or "NYC",
-            check_in=check_in or "2026-06-01",
-            check_out=check_out or "2026-06-07",
-            num_adults=num_travelers,
-        )
-        hotel_result = _mock_hotels(params)
+        hotel_result = HotelSearchResult(options=[])
 
     duration_ms = round((time.monotonic() - t0) * 1000)
     timings = dict(state.get("agent_timings", {}))
