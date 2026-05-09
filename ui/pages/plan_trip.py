@@ -267,7 +267,13 @@ def _kick_off_planning(plan: dict) -> str | None:
 
             elif evt == "error":
                 msg = payload.get("message", "Unknown error")
-                status_lines.append(f"\n❌ Error: {msg}")
+                if "Redis unavailable" in msg:
+                    status_lines.append(
+                        "\nLive progress is unavailable locally; waiting for "
+                        "the saved trip result..."
+                    )
+                else:
+                    status_lines.append(f"\nError: {msg}")
                 progress_placeholder.markdown("\n\n".join(status_lines))
                 break
 
@@ -283,15 +289,47 @@ def _kick_off_planning(plan: dict) -> str | None:
 
 def _show_trip_results(session_id: str) -> str:
     """Fetch the completed trip and return a formatted results string."""
-    url = _api_url()
-    try:
-        resp = requests.get(f"{url}/trips/{session_id}", timeout=15)
-        resp.raise_for_status()
-        trip = resp.json()
-    except Exception as exc:
-        return f"Could not fetch trip results: {exc}"
+    trip = _wait_for_trip_result(session_id)
+    if not trip:
+        return (
+            "The planning run is still in progress. Open **My Trips** and refresh "
+            "in a moment to view the completed itinerary."
+        )
+
+    if trip.get("status") == "failed":
+        errors = trip.get("errors") or (trip.get("raw_state") or {}).get("errors") or []
+        detail = f"\n\nErrors: `{errors}`" if errors else ""
+        return f"The planning run failed before producing an itinerary.{detail}"
 
     return _render_results(trip)
+
+
+def _wait_for_trip_result(session_id: str, timeout_seconds: int = 180) -> dict | None:
+    """Poll until the trip reaches a terminal state or has persisted details."""
+    url = _api_url()
+    deadline = time.time() + timeout_seconds
+    last_trip: dict | None = None
+
+    while time.time() < deadline:
+        try:
+            resp = requests.get(f"{url}/trips/{session_id}", timeout=15)
+            resp.raise_for_status()
+            trip = resp.json()
+        except Exception:
+            time.sleep(2)
+            continue
+
+        last_trip = trip
+        status = trip.get("status")
+        has_details = bool(
+            trip.get("itinerary") or trip.get("booking") or trip.get("raw_state")
+        )
+        if status in {"complete", "failed"} or has_details:
+            return trip
+
+        time.sleep(2)
+
+    return last_trip
 
 
 def _render_results(trip: Any) -> str:
@@ -538,9 +576,6 @@ def render():
                     st.session_state["current_session_id"] = session_id
                     st.session_state["planning_done"] = True
 
-                    # Fetch and display results
-                    # Small delay to let DB commit
-                    time.sleep(1)
                     results_text = _show_trip_results(session_id)
                     st.markdown(results_text)
 
