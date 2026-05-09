@@ -43,14 +43,17 @@ Collect these details naturally (2-3 questions max per turn):
   6. Any special needs (dietary, accessibility, etc.)
 
 CRITICAL RULES:
-- As soon as you know the DESTINATION + DURATION (or dates) + BUDGET, you have \
-enough to hand off. Do NOT keep chatting. Do NOT give travel tips or itinerary \
-suggestions yourself.
-- After at most 3 exchanges with the user, you MUST hand off even if some \
-optional details are missing — fill in reasonable defaults.
-- When handing off, write a short friendly message like "Perfect! I have \
-everything I need. Let me get my planning team working on this..." and then \
-IMMEDIATELY append the hidden JSON block below.
+- You MUST ensure you have ALL of these mandatory details before handing off:
+  1. DESTINATION
+  2. EXACT TRAVEL DATES (e.g., April 10th to April 13th, 2026).
+     Just a duration or month is NOT enough.
+  3. ORIGIN CITY (where they are flying from). Do NOT default to JFK.
+  4. BUDGET
+- If the user provides a month or duration without exact dates, ask them explicitly
+  for the exact dates (we need them to search flights).
+- If the user forgets their origin city, ask them explicitly.
+- Once you have ALL the mandatory info, write a short friendly handoff message
+  and IMMEDIATELY append the hidden JSON block below.
 
 HANDOFF FORMAT — append this at the VERY END of your message:
 
@@ -251,9 +254,9 @@ def _kick_off_planning(plan: dict) -> str | None:
                 label = _pretty_node(node)
                 # Replace the "working" line with "done"
                 status_lines = [
-                    l.replace(f"⏳ {label}...", f"✅ {label}")
-                    if label in l else l
-                    for l in status_lines
+                    line.replace(f"⏳ {label}...", f"✅ {label}")
+                    if label in line else line
+                    for line in status_lines
                 ]
                 progress_placeholder.markdown("\n\n".join(status_lines))
 
@@ -342,7 +345,8 @@ def _render_results(trip: Any) -> str:
                     if loc:
                         line += f"  📍 {loc}"
                     if cost:
-                        line += f"  💰 ${cost}" if isinstance(cost, (int, float)) else f"  💰 {cost}"
+                        cost_text = f"${cost}" if isinstance(cost, (int, float)) else str(cost)
+                        line += f"  💰 {cost_text}"
                     parts.append(line)
                     if tip:
                         parts.append(f"  💡 *{tip}*")
@@ -389,24 +393,34 @@ def _render_results(trip: Any) -> str:
         # Flight details
         fb = _coerce_dict(booking.get("flight_booking"))
         if fb and fb.get("airline"):
-            parts.append(f"**Flight:** {fb.get('airline', 'N/A')} — ${fb.get('total_price_usd', 0):,.2f}")
+            parts.append(
+                f"**Flight:** {fb.get('airline', 'N/A')} — "
+                f"${fb.get('price_usd', 0):,.2f}"
+            )
 
         # Hotel details
         hb = _coerce_dict(booking.get("hotel_booking"))
         if hb and hb.get("name"):
-            parts.append(f"**Hotel:** {hb.get('name', 'N/A')} — ${hb.get('price_per_night_usd', 0):,.2f}/night")
+            parts.append(
+                f"**Hotel:** {hb.get('name', 'N/A')} — "
+                f"${hb.get('price_per_night_usd', 0):,.2f}/night"
+            )
 
-        # Booking instructions
-        instructions = booking.get("booking_instructions") or []
-        if instructions:
-            parts.append("\n**Next Steps:**")
-            for line in instructions:
-                if isinstance(line, str) and line.strip():
-                    parts.append(f"  - {line}")
+        # Booking instructions only if not budget_exceeded
+        if status != "budget_exceeded":
+            instructions = booking.get("booking_instructions") or []
+            if instructions:
+                parts.append("\n**Next Steps:**")
+                for line in instructions:
+                    if isinstance(line, str) and line.strip():
+                        parts.append(f"  - {line}")
 
-        # Real booking flag
-        if not booking.get("is_real_booking"):
-            parts.append("\n*This is a pre-booking plan. Complete reservations using the steps above.*")
+            # Real booking flag
+            if not booking.get("is_real_booking"):
+                parts.append(
+                    "\n*This is a pre-booking plan. Complete reservations using the "
+                    "steps above.*"
+                )
 
     if not daily and not booking:
         parts.append("The trip was planned but no detailed itinerary is available yet.")
@@ -457,8 +471,8 @@ def render():
             1 for m in st.session_state["openai_history"] if m["role"] == "user"
         )
 
-        # If 3+ user turns and still no plan, inject a nudge to force handoff
-        if user_turn_count >= 3 and not st.session_state["planning_done"]:
+        # If 6+ user turns and still no plan, inject a nudge to force handoff
+        if user_turn_count >= 6 and not st.session_state["planning_done"]:
             st.session_state["openai_history"].append({
                 "role": "system",
                 "content": (
@@ -512,8 +526,7 @@ def render():
         plan = _extract_plan(full_response)
 
         # Fallback: if 3+ user turns and LLM still didn't include the block,
-        # ask the LLM one more time explicitly (non-streaming) to extract the plan
-        if not plan and user_turn_count >= 3 and not st.session_state["planning_done"]:
+        if not plan and user_turn_count >= 6 and not st.session_state["planning_done"]:
             plan = _force_extract_plan(client, st.session_state["openai_history"])
 
         if plan and not st.session_state["planning_done"]:

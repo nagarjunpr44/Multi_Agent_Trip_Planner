@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from pydantic import BaseModel, Field, model_validator
 
 
@@ -22,6 +20,23 @@ class BudgetTier(BaseModel):
     transport_usd: float
     misc_usd: float
 
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_nulls(cls, values: dict) -> dict:
+        nullable_fields = (
+            "total_usd",
+            "flights_usd",
+            "hotels_usd",
+            "activities_usd",
+            "food_usd",
+            "transport_usd",
+            "misc_usd",
+        )
+        for f in nullable_fields:
+            if values.get(f) is None:
+                values[f] = 0.0
+        return values
+
 
 class BudgetAnalysis(BaseModel):
     num_days: int
@@ -32,9 +47,9 @@ class BudgetAnalysis(BaseModel):
     luxury: BudgetTier
     recommended_tier: str = "mid"
     line_items: list[CostLineItem] = Field(default_factory=list)
-    per_person_per_day_usd: Optional[float] = None
+    per_person_per_day_usd: float | None = None
     savings_tips: list[str] = Field(default_factory=list)
-    cost_breakdown_note: Optional[str] = None
+    cost_breakdown_note: str | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -51,4 +66,4 @@ class CostEstimate(BaseModel):
     max_usd: float
     avg_usd: float
     currency: str = "USD"
-    note: Optional[str] = None
+    note: str | None = None

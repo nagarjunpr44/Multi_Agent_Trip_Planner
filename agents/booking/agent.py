@@ -52,12 +52,19 @@ async def booking_node(state: TravelState) -> dict:
         constraints, flight_results, hotel_results, budget_analysis, session_id
     )
 
+    budget_usd = constraints.get("budget_usd")
+    status = "ready_to_book"
+    if budget_usd and package["total_estimated_usd"] > float(budget_usd):
+        status = "budget_exceeded"
+
     # Step 2: LLM writes human-readable summary grounded in real package data
-    summary = await _generate_summary(llm, system_prompt, package, constraints, human_feedback)
+    summary = await _generate_summary(
+        llm, system_prompt, package, constraints, human_feedback, status
+    )
 
     result = BookingResult(
         booking_reference=package["booking_reference"],
-        status="ready_to_book",
+        status=status,
         flight_offer_id=package.get("flight_offer_id"),
         flight_booking=package.get("flight_booking"),
         hotel_offer_id=package.get("hotel_offer_id"),
@@ -90,7 +97,7 @@ def _build_booking_package(
     session_id: str,
 ) -> dict:
     """
-    Extracts real Amadeus offer IDs and prices from search results, calculates the
+    Extracts real provider offer IDs and prices from search results, calculates the
     true total cost, and produces actionable booking instructions.
 
     No LLM is used here — all data comes from real API responses already in state.
@@ -98,7 +105,7 @@ def _build_booking_package(
     sel_flight = (flight_results.get("options") or [{}])[0]
     sel_hotel = (hotel_results.get("options") or [{}])[0]
 
-    flight_total = float(sel_flight.get("total_price_usd") or 0)
+    flight_total = float(sel_flight.get("price_usd") or 0)
     nights = _calc_nights(constraints)
     ppn = float(sel_hotel.get("price_per_night_usd") or 0)
     hotel_total = ppn * nights
@@ -125,14 +132,14 @@ def _build_booking_package(
         f"FLIGHT: {airline} — {dep} → {ret} for {destination}",
         f"  Price: ${flight_total:.2f} total per booking",
         (
-            f"  Amadeus Offer ID: {flight_offer_id} (use Flight Orders API to confirm)"
+            f"  Provider Offer ID: {flight_offer_id} (verify before checkout)"
             if flight_offer_id
             else "  Search directly on airline website or a travel portal (e.g., Google Flights)"
         ),
         "",
         f"HOTEL: {hotel_name} — {nights} night(s) @ ${ppn:.2f}/night = ${hotel_total:.2f}",
         (
-            f"  Amadeus Offer ID: {hotel_offer_id} (use Hotel Orders API to confirm)"
+            f"  Provider Offer ID: {hotel_offer_id} (verify before checkout)"
             if hotel_offer_id
             else "  Book directly on hotel website or booking.com"
         ),
@@ -144,7 +151,10 @@ def _build_booking_package(
         "  4. Book hotel and request confirmation email",
         "  5. Check visa requirements for your nationality (see destination research notes)",
         "",
-        "LIVE BOOKING (future): integrate Duffel API (flights) + LiteAPI (hotels) to book in one click.",
+        (
+            "LIVE BOOKING (future): integrate Duffel API (flights) + LiteAPI "
+            "(hotels) to book in one click."
+        ),
     ]
 
     return {
@@ -173,6 +183,7 @@ async def _generate_summary(
     package: dict,
     constraints: dict,
     human_feedback: str | None,
+    status: str = "ready_to_book",
 ) -> str:
     """LLM generates a 2-3 sentence human-readable trip summary from real package data."""
     destination = constraints.get("destination") or (
@@ -201,9 +212,25 @@ async def _generate_summary(
         f"Breakdown: flights ${breakdown.get('flights_usd', 0):.2f}, "
         f"hotel ${breakdown.get('hotel_usd', 0):.2f}, "
         f"activities ${breakdown.get('activities_usd', 0):.2f}\n"
-        f"Status: Ready to book — awaiting your action to complete reservations."
-        f"{feedback_note}"
+        f"Status: {status}\n"
     )
+
+    if status == "budget_exceeded":
+        budget_usd = constraints.get("budget_usd", 0)
+        prompt += (
+            f"\nCRITICAL: The total cost (${total:.2f}) exceeds the user's budget "
+            f"of ${budget_usd}! You MUST write a polite negotiation message. "
+            "Provide proof by explicitly stating the cost of the flights "
+            f"(${breakdown.get('flights_usd', 0):.2f}) and hotels "
+            f"(${breakdown.get('hotel_usd', 0):.2f}) that we found in real-time. "
+            "Give them strong reasons why the budget is impossible, and offer "
+            "two explicit options: 1) Reduce the number of nights, or "
+            "2) Increase their budget. "
+        )
+    else:
+        prompt += "Status: Ready to book — awaiting your action to complete reservations.\n"
+
+    prompt += feedback_note
 
     from langchain_core.messages import HumanMessage as HM
     from langchain_core.messages import SystemMessage as SM

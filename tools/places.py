@@ -54,7 +54,10 @@ async def _fetch_foursquare_places(city: str, category: str, keyword: str) -> li
                 "Accept": "application/json",
             },
         )
-        resp.raise_for_status()
+        try:
+            resp.raise_for_status()
+        except httpx.HTTPStatusError:
+            return []
         data = resp.json()
 
     results = []

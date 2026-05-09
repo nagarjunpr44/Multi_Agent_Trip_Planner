@@ -2,12 +2,9 @@ from __future__ import annotations
 
 import json
 
-import httpx
 from langchain_core.tools import tool
-from tenacity import retry, stop_after_attempt, wait_exponential
 
-from config.settings import get_settings
-
+# Fallback/Offline rates
 MOCK_RATES = {
     "USD": 1.0,
     "EUR": 0.92,
@@ -30,28 +27,13 @@ MOCK_RATES = {
     "TRY": 32.14,
 }
 
-
-@retry(
-    stop=stop_after_attempt(2),
-    wait=wait_exponential(multiplier=1, min=1, max=10),
-    reraise=True,
-)
-async def _fetch_live_rates(base_currency: str, api_key: str) -> dict[str, float]:
-    url = f"https://openexchangerates.org/api/latest.json"
-    async with httpx.AsyncClient(timeout=8.0) as client:
-        resp = await client.get(url, params={"app_id": api_key, "base": "USD"})
-        resp.raise_for_status()
-        data = resp.json()
-    return data.get("rates", {})
-
-
 @tool
 async def convert_currency_tool(
     amount: float,
     from_currency: str,
     to_currency: str,
 ) -> str:
-    """Convert an amount between currencies.
+    """Convert an amount between currencies using approximate local rates.
 
     Args:
         amount: Amount to convert
@@ -63,17 +45,10 @@ async def convert_currency_tool(
     """
     from_currency = from_currency.upper()
     to_currency = to_currency.upper()
-    s = get_settings()
 
-    if not s.apis.exchange_rates_api_key:
-        return json.dumps({"error": "EXCHANGE_RATES_API_KEY is not configured. Cannot compute live currency rate."})
-        
-    rates = await _fetch_live_rates("USD", s.apis.exchange_rates_api_key)
-    is_mock = False
-
-    # Convert via USD as base
-    from_rate = rates.get(from_currency, 1.0)
-    to_rate = rates.get(to_currency, 1.0)
+    # Convert via USD as base using built-in rates
+    from_rate = MOCK_RATES.get(from_currency, 1.0)
+    to_rate = MOCK_RATES.get(to_currency, 1.0)
 
     # amount in from_currency → USD → to_currency
     amount_usd = amount / from_rate
@@ -86,6 +61,6 @@ async def convert_currency_tool(
         "original_amount": amount,
         "converted_amount": converted,
         "exchange_rate": rate,
-        "1_usd_equals": {to_currency: rates.get(to_currency, 1.0)},
-        "is_mock": is_mock,
+        "1_usd_equals": {to_currency: to_rate},
+        "is_mock": True,
     })
