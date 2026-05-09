@@ -112,7 +112,7 @@ Open:
 └──────┬──────────┬──────────┬──────────┬──────────┬───────────────────────┘
        │          │          │          │          │
    ┌───▼──┐  ┌───▼──┐  ┌───▼──┐  ┌───▼──┐  ┌───▼───┐
-   │Amadeus│  │Tavily│  │Foursq│  │Google│  │OpenWM │
+   │SerpApi│  │Tavily│  │Foursq│  │Google│  │OpenWM │
    │Flights│  │Search│  │Places│  │ Maps │  │Weather│
    │Hotels │  │      │  │      │  │      │  │       │
    └───────┘  └──────┘  └──────┘  └──────┘  └───────┘
@@ -248,7 +248,7 @@ Gathers destination intelligence via Tavily web search and OpenWeatherMap weathe
 **Tools:** `search_flights_tool`
 **Output:** `FlightSearchResult`
 
-Searches for flight options using the Amadeus Flight Offers API. The LLM infers IATA codes from city names, calls the search tool, and the results are parsed into structured `FlightOption` objects with price, duration, stops, and baggage info. Falls back to mock data if the API is unavailable.
+Searches for flight options using SerpApi Google Flights. Common city names are normalized to IATA airport codes before the tool call, and results are parsed into structured `FlightOption` objects with price, duration, stops, and booking links.
 
 ### 4. Hotels Agent
 **File:** `agents/hotels/agent.py`
@@ -256,7 +256,7 @@ Searches for flight options using the Amadeus Flight Offers API. The LLM infers 
 **Tools:** `search_hotels_tool`
 **Output:** `HotelSearchResult`
 
-Searches for hotel accommodations using the Amadeus Hotel API (city listing → offer search). Returns options with star ratings, pricing, amenities, and refundability. Falls back to tiered mock data if needed.
+Searches for hotel accommodations using SerpApi Google Hotels. Returns options with star ratings, pricing, amenities, review metadata, coordinates, and booking links when available.
 
 ### 5. Experiences Agent
 **File:** `agents/experiences/agent.py`
@@ -300,7 +300,7 @@ Overall score is the average. **Pass threshold = 0.75**. If failed, provides spe
 **Model:** `gpt-4o-mini` (temperature 0.0)
 **Output:** `BookingResult`
 
-HITL interrupt point. In **autonomous mode**, proceeds directly with mock booking confirmation. In **HITL mode**, the graph pauses before this node; the user reviews the plan via the API and approves/rejects. Generates a booking reference, confirms flight/hotel selections, and stamps total charged amount.
+HITL interrupt point. In **autonomous mode**, produces a pre-booking package from real search data. In **HITL mode**, the graph pauses before this node; the user reviews the plan via the API and approves/rejects. Generates a trip reference, selected flight/hotel details, estimated total cost, and next booking steps.
 
 ### 10. Memory Agents (Load & Save)
 **File:** `agents/memory/agent.py`
@@ -313,16 +313,16 @@ HITL interrupt point. In **autonomous mode**, proceeds directly with mock bookin
 
 ## Tools
 
-All tools are LangChain `@tool`-decorated async functions registered in a central `ToolRegistry` (`tools/registry.py`). Each tool has automatic retry with exponential backoff via `tenacity`. Every tool falls back to mock data when `MOCK_FALLBACK=true` or when the real API key is missing.
+All tools are LangChain `@tool`-decorated async functions registered in a central `ToolRegistry` (`tools/registry.py`). External API tools use exponential retry via `tenacity`; missing API keys are surfaced as structured tool errors instead of fabricated prices.
 
 | Tool | File | API | Description |
 |---|---|---|---|
-| `search_flights_tool` | `tools/flights.py` | Amadeus Flight Offers | Search flights by origin/destination/dates |
-| `search_hotels_tool` | `tools/hotels.py` | Amadeus Hotel Offers | Search hotels by city/dates/guests |
+| `search_flights_tool` | `tools/flights.py` | SerpApi Google Flights | Search flights by origin/destination/dates |
+| `search_hotels_tool` | `tools/hotels.py` | SerpApi Google Hotels | Search hotels by city/dates/guests |
 | `search_places_tool` | `tools/places.py` | Foursquare Places v3 | Discover restaurants, attractions, hidden gems |
 | `web_research_tool` | `tools/research.py` | Tavily Search | Web search for destination intelligence |
 | `get_weather_tool` | `tools/weather.py` | OpenWeatherMap | Weather forecasts for destinations |
-| `convert_currency_tool` | `tools/currency.py` | Open Exchange Rates | Currency conversion between codes |
+| `convert_currency_tool` | `tools/currency.py` | Local approximate rates | Currency conversion between codes |
 | `get_travel_distance_tool` | `tools/maps.py` | Google Distance Matrix | Travel time/distance between locations |
 
 **Agent → Tool mapping:**
@@ -484,9 +484,7 @@ FAST_MODEL=gpt-4o-mini
 VALIDATOR_MODEL=gpt-4o
 
 # ── External APIs ────────────────────────────────────
-AMADEUS_API_KEY=...
-AMADEUS_API_SECRET=...
-AMADEUS_HOSTNAME=test                # test | production
+SERPAPI_API_KEY=your_serpapi_key_here
 TAVILY_API_KEY=tvly-...
 OPENWEATHERMAP_API_KEY=...
 FOURSQUARE_API_KEY=...
@@ -501,7 +499,6 @@ CHROMA_PORT=8001
 
 # ── App Settings ─────────────────────────────────────
 APP_ENV=development                  # development | production
-MOCK_FALLBACK=false                  # true = use mock data for all tools
 HITL_ENABLED=false                   # true = pause before booking
 MAX_REVISION_CYCLES=2
 VALIDATOR_PASS_THRESHOLD=0.75
@@ -571,8 +568,8 @@ uv sync --dev
 # 3. Configure environment
 cp .env.example .env   # Edit with your API keys
 
-# 4. Run the smoke test (no external services needed)
-MOCK_FALLBACK=true uv run python test_agent.py
+# 4. Run fast tests
+uv run pytest tests/ -q
 
 # 5. Start the API server
 uv run python main.py
@@ -605,8 +602,8 @@ docker compose up --build
 ### Running Tests
 
 ```bash
-# Smoke test (mock mode, no services needed)
-MOCK_FALLBACK=true uv run python test_agent.py
+# Fast unit tests
+uv run pytest tests/ -q
 
 # End-to-end test (uses real APIs if configured)
 uv run python test_e2e.py
@@ -629,7 +626,7 @@ AgenticTripPlanner/
 ├── Dockerfile                     # Container image (Python 3.12-slim)
 ├── docker-compose.yml             # Full stack: Postgres, Redis, ChromaDB, API, UI
 ├── alembic.ini                    # Alembic migration config
-├── test_agent.py                  # Smoke test (mock mode)
+├── test_agent.py                  # Smoke test script
 ├── test_e2e.py                    # End-to-end test with rich output
 │
 ├── agents/                        # LangGraph agent nodes
@@ -639,13 +636,13 @@ AgenticTripPlanner/
 │   ├── llm_factory.py             # LLM instantiation (OpenAI / Anthropic)
 │   ├── supervisor/agent.py        # Orchestrator — parses query, produces execution plan
 │   ├── research/agent.py          # Destination intelligence (Tavily + weather)
-│   ├── flights/agent.py           # Flight search (Amadeus)
-│   ├── hotels/agent.py            # Hotel search (Amadeus)
+│   ├── flights/agent.py           # Flight search (SerpApi)
+│   ├── hotels/agent.py            # Hotel search (SerpApi)
 │   ├── experiences/agent.py       # Places discovery (Foursquare)
 │   ├── budget/agent.py            # 3-tier budget analysis + currency conversion
 │   ├── itinerary/agent.py         # Day-by-day itinerary builder (+ distance API)
 │   ├── validator/agent.py         # Quality critic — 4-dimension scoring
-│   ├── booking/agent.py           # Mock booking + HITL interrupt point
+│   ├── booking/agent.py           # Pre-booking package + HITL interrupt point
 │   └── memory/agent.py            # ChromaDB load/save for user preferences
 │
 ├── api/                           # FastAPI application
@@ -662,13 +659,13 @@ AgenticTripPlanner/
 │
 ├── tools/                         # LangChain tool functions
 │   ├── registry.py                # Central tool registry + agent-tool mapping
-│   ├── flights.py                 # Amadeus flight search + mock
-│   ├── hotels.py                  # Amadeus hotel search + mock
-│   ├── places.py                  # Foursquare places search + mock
-│   ├── research.py                # Tavily web search + mock
-│   ├── weather.py                 # OpenWeatherMap forecast + mock
-│   ├── currency.py                # Exchange rate conversion + mock
-│   └── maps.py                    # Google Distance Matrix + mock
+│   ├── flights.py                 # SerpApi Google Flights
+│   ├── hotels.py                  # SerpApi Google Hotels
+│   ├── places.py                  # Foursquare places search
+│   ├── research.py                # Tavily web search
+│   ├── weather.py                 # OpenWeatherMap forecast
+│   ├── currency.py                # Approximate local-rate conversion
+│   └── maps.py                    # Google Distance Matrix
 │
 ├── schemas/                       # Pydantic v2 models
 │   ├── agent_output.py            # SupervisorPlan, DestinationInfo, ValidationResult, BookingResult
@@ -726,18 +723,17 @@ AgenticTripPlanner/
 
 ### Advantages
 - **Asynchronous & Parallel Execution**: LangGraph allows the slow API calls (Flights, Hotels, Places) to happen in parallel, significantly improving the processing time.
-- **Strong Resilience**: It incorporates an exponential retry mechanism for API tools alongside robust Mock data fallback logic, so the app remains entirely functional during API outages.
+- **Explicit Failure Handling**: It incorporates exponential retry for API tools and propagates provider/configuration failures into graph state instead of hiding them behind fabricated prices.
 - **Production Preparedness**: Implements streaming via Redis pub/sub and Server-Sent Events, complete schema verification via Pydantic v2, and observability/tracing with LangSmith and Prometheus.
 
 ### Identified Flaws
-- **Fatal API Dependency (Amadeus Shutdown)**: The project currently relies on Amadeus's self-service developer portal. **Critically, as of March 2026, Amadeus has paused new registrations and is fully decommissioning the self-service web portal by July 17, 2026**. Without an enterprise contract, the Flight and Hotel agents will soon permanently fail.
+- **Provider Depth**: Flight and hotel discovery now use SerpApi, but production booking still needs a transactional provider for purchase and post-booking management.
 - **Booking Agent is "Dummy"**: The booking agent builds a "ready-to-book" packet but hasn't integrated with Duffel or an equivalent OTA booking integration to finalize travel purchases automatically.
 
 ### Recommended April 2026 Fixes & Integrations
 As of **April 2026**, several critical updates have occurred in the software ecosystem which this project must adapt to:
-1. **Amadeus Complete API Migration**: The project MUST migrate its Flight/Hotel capabilities to alternative services like **Duffel** or **Skyscanner APIs** immediately to continue functioning past July 17, 2026.
+1. **Transactional Booking Provider**: Integrate **Duffel** or another OTA/booking provider to convert pre-booking selections into purchasable carts.
 2. **LangGraph 1.1 Upgrade**: LangGraph had a v1.1 update in April 2026 featuring highly improved type-safety (type-safe streaming configurations and coercion via Dataclass support). You can upgrade the `StateGraph` definition strictly with these safety constraints to guarantee state integrity.
 3. **LangSmith Fleet (Agent Builder)**: LangChain rebranded Agent Builder to **LangSmith Fleet**, enabling robust enterprise governance, cross-session agent sharing, and permission handling.
 4. **Deep Agents v0.5.0 Integration**: The parallel agents (Research, Flights, Hotels) could be refactored into **Async Subagents** running under Deep Agents v0.5, utilizing background workers.
 5. **Real OTA Bookings**: Future integration should connect the system to **Duffel API** to convert the generated `ready-to-book` states directly into live purchasable carts via Stripe links.
-

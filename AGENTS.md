@@ -46,7 +46,7 @@ Integration tools in the `tools/` directory:
 6. Build Docker compose: `docker compose up --build`.
 
 ## Testing
-- Smoke test with mock fallback: `MOCK_FALLBACK=true uv run python test_agent.py`.
+- Smoke test: `uv run python test_agent.py`.
 - End-to-end test: `uv run python test_e2e.py`.
 - Full test suite: `uv run pytest tests/ -v --cov`.
 

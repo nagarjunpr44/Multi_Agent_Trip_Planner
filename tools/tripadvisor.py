@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+
 from langchain_core.tools import tool
+
 from config.settings import get_settings
 
 try:
@@ -22,10 +24,19 @@ async def search_tripadvisor_tool(destination: str, category: str = "geos") -> s
     """
     s = get_settings()
     if not s.apis.firecrawl_api_key:
-        return json.dumps({"error": "FIRECRAWL_API_KEY is not configured. Cannot perform Firecrawl search."})
-        
+        return json.dumps(
+            {
+                "error": (
+                    "FIRECRAWL_API_KEY is not configured. Cannot perform "
+                    "Firecrawl search."
+                )
+            }
+        )
+
     if FirecrawlApp is None:
-        return json.dumps({"error": "Firecrawl SDK is not installed. Run: uv pip install firecrawl-py"})
+        return json.dumps(
+            {"error": "Firecrawl SDK is not installed. Run: uv pip install firecrawl-py"}
+        )
 
     try:
         app = FirecrawlApp(api_key=s.apis.firecrawl_api_key)
@@ -36,7 +47,7 @@ async def search_tripadvisor_tool(destination: str, category: str = "geos") -> s
         # We can use the simple search endpoint first
         response = app.search(search_query)
         
-        # Firecrawl native search endpoint returns {'data': [{url, title, description, content}, ...], 'success': True}
+        # Firecrawl native search returns {'data': [{url, title, description, ...}]}.
         data = response.get('data', [])
         
         snippets = []

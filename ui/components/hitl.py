@@ -45,7 +45,7 @@ def render_hitl(api_url: str, session_id: str) -> None:
                 st.markdown(f"- ⚠️ {issue}")
     with col2:
         mid = (budget.get("mid") or {})
-        st.metric("Estimated Cost", f"${mid.get('total_cost_usd', 'N/A')}")
+        st.metric("Estimated Cost", f"${mid.get('total_usd', 'N/A')}")
         if suggestions:
             st.markdown("**Suggestions:**")
             for s in suggestions[:3]:
@@ -80,7 +80,7 @@ def _submit_decision(api_url: str, session_id: str, approved: bool, feedback: st
     try:
         resp = requests.post(
             f"{api_url}/trips/{session_id}/{endpoint}",
-            json={"feedback": feedback or None},
+            json={"approved": approved, "feedback": feedback or None},
             timeout=10,
         )
         resp.raise_for_status()

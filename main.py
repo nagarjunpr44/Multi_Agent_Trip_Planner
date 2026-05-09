@@ -21,6 +21,7 @@ from observability.tracing import configure_tracing
 
 def run_api() -> None:
     import uvicorn
+
     from api.app import create_app
 
     configure_logging()

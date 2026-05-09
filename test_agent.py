@@ -1,6 +1,6 @@
 """
 Standalone smoke test — runs the full LangGraph pipeline without Postgres/Redis.
-Uses MemorySaver + MOCK_FALLBACK so zero services needed.
+Uses MemorySaver; requires configured LLM and external provider keys for full output.
 
 Run:
   python test_agent.py
@@ -10,20 +10,20 @@ from __future__ import annotations
 import asyncio
 import os
 
-# Force mock mode + in-memory checkpointer BEFORE any imports
-os.environ.setdefault("MOCK_FALLBACK", "true")
+# Force in-memory checkpointer BEFORE any imports
 os.environ.setdefault("DATABASE_URL", "")          # triggers MemorySaver fallback
 os.environ.setdefault("CHECKPOINT_DB_URL", "")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")  # won't be used
 
 import logging
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("smoke_test")
 
 
 async def main() -> None:
+    from agents.graph import get_graph_sync
     from tools.registry import initialize_registry
-    from agents.graph import reset_graph, get_graph_sync
 
     logger.info("Initializing tool registry...")
     initialize_registry()
@@ -33,7 +33,10 @@ async def main() -> None:
 
     initial_state = {
         "session_id": "test-001",
-        "user_query": "Plan a 3-day trip to Tokyo for 2 people in April. Budget $3000. We love food and temples.",
+        "user_query": (
+            "Plan a 3-day trip to Tokyo for 2 people in April. "
+            "Budget $3000. We love food and temples."
+        ),
         "constraints": {
             "destination": "Tokyo",
             "departure_date": "2026-04-10",
@@ -86,7 +89,10 @@ async def main() -> None:
         all_acts = (
             day.get("morning", []) + day.get("afternoon", []) + day.get("evening", [])
         )
-        print(f"  Day {day.get('day_number')}: {day.get('theme') or day.get('city')} — {len(all_acts)} activities")
+        print(
+            f"  Day {day.get('day_number')}: "
+            f"{day.get('theme') or day.get('city')} — {len(all_acts)} activities"
+        )
 
     val = state.get("validation_result") or {}
     print(f"\nValidation score: {val.get('score', 'N/A')}")

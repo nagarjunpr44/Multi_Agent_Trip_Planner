@@ -6,7 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 
 from agents.graph import get_graph
 from api.dependencies import DBSession, Publisher
-from cache.redis_client import get_redis_client
+from db.connection import get_db_session
 from db.repository import TripRepository
 from schemas.trip import HITLResumeRequest
 
@@ -61,9 +61,12 @@ async def reject_trip(
     await publisher.publish(
         session_id,
         "error",
-        {"message": "Trip planning rejected by user.", "reason": body.feedback or "No reason provided."},
+        {
+            "message": "Trip planning rejected by user.",
+            "reason": body.feedback or "No reason provided.",
+        },
     )
-    await repo.update_trip_status(session_id, "rejected")
+    await repo.update_status(session_id, "rejected")
 
     return {"session_id": session_id, "status": "rejected"}
 
@@ -94,6 +97,13 @@ async def _resume_graph(
                 await publisher.publish(session_id, "agent_start", {"node": node_name})
             elif event_type == "on_chain_end" and node_name:
                 await publisher.publish(session_id, "agent_complete", {"node": node_name})
+
+        final_state = await graph.aget_state(config)
+        raw_state = final_state.values if final_state else {}
+        async with get_db_session() as db:
+            repo = TripRepository(db)
+            await repo.update_raw_state(session_id, raw_state)
+            await repo.update_status(session_id, "complete")
 
         await publisher.publish(session_id, "graph_complete", {"session_id": session_id})
 

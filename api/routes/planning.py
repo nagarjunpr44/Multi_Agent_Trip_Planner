@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks
 
 from agents.graph import get_graph
 from api.dependencies import DBSession, Publisher
@@ -31,7 +30,7 @@ async def start_planning(
     session_id = str(uuid.uuid4())
 
     repo = TripRepository(db)
-    trip = await repo.create_trip(
+    await repo.create_trip(
         session_id=session_id,
         user_query=request.user_query,
         constraints=request.constraints.model_dump(mode="json") if request.constraints else {},
@@ -60,10 +59,11 @@ async def _run_graph(
     try:
         graph = await get_graph()
 
+        constraints = request.constraints.model_dump(mode="json") if request.constraints else {}
         initial_state = {
             "session_id": session_id,
             "user_query": request.user_query,
-            "constraints": request.constraints.model_dump(mode="json") if request.constraints else {},
+            "constraints": constraints,
             "mode": request.mode or "autonomous",
             "messages": [],
             "revision_count": 0,
@@ -90,8 +90,11 @@ async def _run_graph(
             elif event_type == "on_chain_end" and node_name and node_name not in completed_nodes:
                 completed_nodes.add(node_name)
                 output = event.get("data", {}).get("output", {})
+                output_keys = list(output.keys()) if isinstance(output, dict) else []
                 await publisher.publish(
-                    session_id, "agent_complete", {"node": node_name, "output_keys": list(output.keys()) if isinstance(output, dict) else []}
+                    session_id,
+                    "agent_complete",
+                    {"node": node_name, "output_keys": output_keys},
                 )
 
         # Grab the final state snapshot from the graph

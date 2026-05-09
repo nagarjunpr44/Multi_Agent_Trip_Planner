@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import date, datetime, timezone
-from typing import Optional
+from datetime import UTC, date, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -37,8 +36,8 @@ class TripRepository:
         self,
         user_query: str,
         mode: str = "autonomous",
-        session_id: Optional[str] = None,
-        constraints: Optional[dict] = None,
+        session_id: str | None = None,
+        constraints: dict | None = None,
     ) -> Trip:
         session_id = session_id or str(uuid.uuid4())
         trip = Trip(
@@ -52,7 +51,7 @@ class TripRepository:
         await self._session.flush()
         return trip
 
-    async def get_by_session_id(self, session_id: str) -> Optional[Trip]:
+    async def get_by_session_id(self, session_id: str) -> Trip | None:
         result = await self._session.execute(
             select(Trip).where(Trip.session_id == session_id)
         )
@@ -61,7 +60,7 @@ class TripRepository:
     # Alias used by api/routes/trips.py
     get_trip = get_by_session_id
 
-    async def get_by_id(self, trip_id: str) -> Optional[Trip]:
+    async def get_by_id(self, trip_id: str) -> Trip | None:
         result = await self._session.execute(
             select(Trip).where(Trip.id == trip_id)
         )
@@ -77,7 +76,7 @@ class TripRepository:
         trip = await self.get_by_session_id(session_id)
         if trip:
             trip.status = status
-            trip.updated_at = datetime.now(timezone.utc)
+            trip.updated_at = datetime.now(UTC)
             await self._session.flush()
 
     async def update_raw_state(self, session_id: str, raw_state: dict) -> None:
@@ -87,7 +86,7 @@ class TripRepository:
             trip.raw_state = safe
             trip.itinerary = _json_safe(raw_state.get("itinerary"))
             trip.booking = _json_safe(raw_state.get("booking_result"))
-            trip.updated_at = datetime.now(timezone.utc)
+            trip.updated_at = datetime.now(UTC)
             await self._session.flush()
 
     async def delete_trip(self, session_id: str) -> bool:
@@ -104,7 +103,7 @@ class TripRepository:
         destination: str,
         num_days: int,
         itinerary_json: dict,
-        validation_score: Optional[float] = None,
+        validation_score: float | None = None,
     ) -> ItineraryRecord:
         record = ItineraryRecord(
             trip_id=trip_id,
@@ -125,7 +124,7 @@ class TripRepository:
         provider: str,
         amount_usd: float,
         status: str = "pending",
-        details_json: Optional[dict] = None,
+        details_json: dict | None = None,
     ) -> BookingRecord:
         record = BookingRecord(
             trip_id=trip_id,

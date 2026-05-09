@@ -20,11 +20,11 @@ Located in the `agents/` directory:
 
 ## Tools
 Integration tools in the `tools/` directory:
-- Flight and hotel search via Amadeus API.
+- Flight and hotel search via SerpApi Google Flights/Hotels.
 - Web research via Tavily.
 - Weather forecasts via OpenWeatherMap.
 - Place discovery via Foursquare.
-- Currency conversion via Open Exchange Rates.
+- Currency conversion via approximate local rates.
 - Travel distance calculations via Google Maps.
 
 ## Data Layer
@@ -46,7 +46,7 @@ Integration tools in the `tools/` directory:
 6. Build Docker compose: `docker compose up --build`.
 
 ## Testing
-- Smoke test with mock fallback: `MOCK_FALLBACK=true uv run python test_agent.py`.
+- Smoke test: `uv run python test_agent.py`.
 - End-to-end test: `uv run python test_e2e.py`.
 - Full test suite: `uv run pytest tests/ -v --cov`.
 

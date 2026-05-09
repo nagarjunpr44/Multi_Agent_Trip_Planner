@@ -71,7 +71,8 @@ async def itinerary_node(state: TravelState) -> dict:
         HumanMessage(
             content=(
                 f"{context_block}\n\n"
-                f"Distance context (for realistic scheduling):\n{distance_context or 'Not available.'}"
+                "Distance context (for realistic scheduling):\n"
+                f"{distance_context or 'Not available.'}"
                 f"{revision_section}\n\n"
                 f"Produce a full day-by-day Itinerary with exactly {num_days} DayPlans. "
                 "Each day should have 3–5 activities. "
@@ -203,9 +204,9 @@ def _build_context_block(
         fo = flight_results["options"][0]
         flight_info = (
             f"Selected flight: {fo.get('airline', 'N/A')} | "
-            f"${fo.get('total_price_usd', 'N/A')} | "
-            f"{fo.get('duration_minutes', 'N/A')} min | "
-            f"Departs: {fo.get('departure_time', 'N/A')} -> Arrives: {fo.get('arrival_time', 'N/A')}"
+            f"${fo.get('price_usd', 'N/A')} | "
+            f"{fo.get('total_duration_minutes', 'N/A')} min | "
+            f"Stops: {fo.get('num_stops', 'N/A')}"
         )
 
     hotel_info = "No hotel data."

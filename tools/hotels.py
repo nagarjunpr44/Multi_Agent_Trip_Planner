@@ -10,6 +10,17 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from config.settings import get_settings
 from schemas.hotel import HotelAmenity, HotelOption, HotelSearchParams, HotelSearchResult
 
+_CITY_ALIASES = {
+    "new york city": "new york",
+    "nyc": "new york",
+    "sf": "san francisco",
+}
+
+
+def normalize_hotel_city(value: str) -> str:
+    cleaned = " ".join(value.strip().lower().replace(",", " ").split())
+    return _CITY_ALIASES.get(cleaned, cleaned).title() if cleaned else ""
+
 
 def _count_nights(check_in: str, check_out: str) -> int:
     from datetime import date
@@ -143,7 +154,7 @@ async def search_hotels_tool(
         JSON string of HotelSearchResult
     """
     params = HotelSearchParams(
-        city_code=city.upper(),
+        city_code=normalize_hotel_city(city),
         check_in=check_in,
         check_out=check_out,
         num_adults=num_adults,
@@ -153,8 +164,13 @@ async def search_hotels_tool(
     )
     s = get_settings()
     if not s.apis.serpapi_api_key:
-        return json.dumps({"error": "SERPAPI_API_KEY is not configured. Cannot search hotels."})
-        
+        return json.dumps(
+            {
+                "error": "SERPAPI_API_KEY is not configured. Cannot search hotels.",
+                "source": "serpapi_config_error",
+            }
+        )
+
     result = await _search_serpapi_hotels(params)
 
     return result.model_dump_json()

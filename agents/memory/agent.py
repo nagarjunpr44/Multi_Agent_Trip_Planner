@@ -37,7 +37,11 @@ async def memory_load_node(state: TravelState) -> dict:
             logger.warning("Memory load failed (non-fatal): %s", exc)
             user_context = {}
 
-    logger.info("Memory load complete for session=%s, keys=%s", session_id, list(user_context.keys()))
+    logger.info(
+        "Memory load complete for session=%s, keys=%s",
+        session_id,
+        list(user_context.keys()),
+    )
     return {"user_context": user_context}
 
 

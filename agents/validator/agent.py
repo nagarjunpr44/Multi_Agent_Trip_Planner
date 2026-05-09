@@ -85,7 +85,11 @@ async def validator_node(state: TravelState) -> dict:
 
     # LangGraph 1.1: Direct type-safe routing via Command
     MAX_REVISIONS = 2
-    goto_node = "itinerary_node" if not result.passed and revision_count < MAX_REVISIONS else "booking_node"
+    goto_node = (
+        "itinerary_node"
+        if not result.passed and revision_count < MAX_REVISIONS
+        else "booking_node"
+    )
 
     return Command(
         goto=goto_node,

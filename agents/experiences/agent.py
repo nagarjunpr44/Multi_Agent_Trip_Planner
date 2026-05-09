@@ -30,16 +30,8 @@ async def experiences_node(state: TravelState) -> dict:
     constraints = state.get("constraints", {})
     destinations = constraints.get("destinations", [])
     city = destinations[0] if destinations else "the destination"
-    activity_prefs = constraints.get("activity_preferences", [])
     dietary = constraints.get("dietary_restrictions", [])
-
-    categories = ["restaurant", "attraction", "hidden_gem", "activity"]
-    keywords = {
-        "restaurant": f"best restaurants {', '.join(dietary) if dietary else ''}".strip(),
-        "attraction": "must visit",
-        "hidden_gem": "local secret off the beaten path",
-        "activity": f"things to do {', '.join(activity_prefs) if activity_prefs else ''}".strip(),
-    }
+    activity_prefs = constraints.get("activity_preferences", [])
 
     # create_react_agent handles the multi-call tool loop automatically
     react_agent = create_react_agent(llm, tools, prompt=system_prompt)
@@ -72,7 +64,7 @@ async def experiences_node(state: TravelState) -> dict:
 
     # Only backfill if we got ZERO results (complete API failure)
     if len(all_experiences) == 0:
-        pass # Graceful degradation if no API results are found
+        pass  # Graceful degradation if no API results are found
 
     duration_ms = round((time.monotonic() - t0) * 1000)
     timings = dict(state.get("agent_timings", {}))

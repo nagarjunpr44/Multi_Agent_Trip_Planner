@@ -105,12 +105,12 @@ class BookingResult(BaseModel):
     booking_reference: str | None = None
     status: str = "ready_to_book"   # ready_to_book | awaiting_approval | skipped
 
-    # Real flight data sourced from Amadeus search results
-    flight_offer_id: str | None = None       # Amadeus offer ID (if available)
+    # Real flight data sourced from provider search results
+    flight_offer_id: str | None = None       # Provider offer/search token (if available)
     flight_booking: dict | None = None       # full flight option dict from search
 
-    # Real hotel data sourced from Amadeus search results
-    hotel_offer_id: str | None = None        # Amadeus offer ID (if available)
+    # Real hotel data sourced from provider search results
+    hotel_offer_id: str | None = None        # Provider offer/search token (if available)
     hotel_booking: dict | None = None        # full hotel option dict from search
 
     # Pricing calculated from real search data (not LLM-estimated)

@@ -8,12 +8,12 @@ from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from agents.llm_factory import get_llm_for_agent
 from agents.state import TravelState
 from prompts.loader import get_prompt
-from schemas.hotel import HotelSearchResult
+from schemas.hotel import HotelSearchParams, HotelSearchResult
 from tools.registry import ToolRegistry
 
 
 async def hotels_node(state: TravelState) -> dict:
-    """Hotels Agent: searches for accommodations via Amadeus."""
+    """Hotels Agent: searches for accommodations via SerpApi Google Hotels."""
     t0 = time.monotonic()
     agent_name = "hotels"
 
@@ -30,6 +30,12 @@ async def hotels_node(state: TravelState) -> dict:
     num_travelers = constraints.get("num_travelers", 1)
     budget_usd = constraints.get("budget_usd")
     star_min = constraints.get("hotel_star_rating", 0) or 0
+    fallback_params = HotelSearchParams(
+        city_code=city or "Unknown",
+        check_in=str(check_in or "2099-01-01"),
+        check_out=str(check_out or "2099-01-02"),
+        num_adults=num_travelers,
+    )
 
     messages = [
         SystemMessage(content=system_prompt),
@@ -60,17 +66,43 @@ async def hotels_node(state: TravelState) -> dict:
             current_messages.append(ToolMessage(content=raw_result, tool_call_id=tc["id"]))
         break
 
+    errors: list[dict] = []
     try:
         hotel_data = json.loads(raw_result)
-        hotel_result = HotelSearchResult.model_validate(hotel_data)
-    except Exception:
-        hotel_result = HotelSearchResult(options=[])
+        if isinstance(hotel_data, dict) and hotel_data.get("error"):
+            errors.append(
+                {
+                    "agent": agent_name,
+                    "tool": "search_hotels_tool",
+                    "message": hotel_data["error"],
+                    "source": hotel_data.get("source", "unknown"),
+                }
+            )
+            hotel_result = HotelSearchResult(
+                params=fallback_params,
+                options=[],
+                source=hotel_data.get("source", "error"),
+            )
+        else:
+            hotel_result = HotelSearchResult.model_validate(hotel_data)
+    except Exception as exc:
+        errors.append(
+            {
+                "agent": agent_name,
+                "tool": "search_hotels_tool",
+                "message": f"Could not parse hotel search result: {exc}",
+            }
+        )
+        hotel_result = HotelSearchResult(params=fallback_params, options=[])
 
     duration_ms = round((time.monotonic() - t0) * 1000)
     timings = dict(state.get("agent_timings", {}))
     timings[agent_name] = duration_ms
 
-    return {
+    result = {
         "hotel_results": hotel_result.model_dump(),
         "agent_timings": timings,
     }
+    if errors:
+        result["errors"] = errors
+    return result

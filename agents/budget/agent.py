@@ -44,7 +44,9 @@ async def budget_node(state: TravelState) -> dict:
     if local_currency and local_currency != "USD":
         messages = [
             SystemMessage(content="You are a currency tool caller."),
-            HumanMessage(content=f"Convert 1 USD to {local_currency} using the convert_currency tool."),
+            HumanMessage(
+                content=f"Convert 1 USD to {local_currency} using the convert_currency tool."
+            ),
         ]
         current_messages = list(messages)
         for _ in range(2):
@@ -65,7 +67,9 @@ async def budget_node(state: TravelState) -> dict:
             content=(
                 f"Produce a BudgetAnalysis for this trip:\n\n"
                 f"Travelers: {num_travelers}, Days: {num_days}\n"
-                f"User budget: {'$' + str(budget_usd) if budget_usd else 'not specified'} ({budget_tier} tier)\n\n"
+                "User budget: "
+                f"{'$' + str(budget_usd) if budget_usd else 'not specified'} "
+                f"({budget_tier} tier)\n\n"
                 f"Flight data:\n{flight_summary}\n\n"
                 f"Hotel data:\n{hotel_summary}\n\n"
                 f"Experiences data:\n{exp_summary}"
@@ -117,7 +121,9 @@ def _summarize_hotels(hr: dict | None) -> str:
     opts = hr.get("options", [])
     if not opts:
         return "No hotel options found."
-    ppn_range = f"${opts[0].get('price_per_night_usd', '?')} – ${opts[-1].get('price_per_night_usd', '?')}"
+    low = opts[0].get("price_per_night_usd", "?")
+    high = opts[-1].get("price_per_night_usd", "?")
+    ppn_range = f"${low} – ${high}"
     return (
         f"{len(opts)} hotel options. "
         f"Price per night: {ppn_range}. "

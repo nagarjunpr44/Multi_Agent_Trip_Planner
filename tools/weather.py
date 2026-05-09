@@ -91,7 +91,9 @@ async def get_weather_tool(city: str, forecast_days: int = 5) -> str:
     """
     s = get_settings()
     if not s.apis.openweathermap_api_key:
-        return json.dumps({"error": "OPENWEATHERMAP_API_KEY is not configured. Cannot fetch weather."})
-        
+        return json.dumps(
+            {"error": "OPENWEATHERMAP_API_KEY is not configured. Cannot fetch weather."}
+        )
+
     result = await _fetch_owm_weather(city, forecast_days)
     return str(result)

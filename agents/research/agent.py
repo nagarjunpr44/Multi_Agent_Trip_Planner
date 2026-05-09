@@ -73,7 +73,10 @@ async def research_node(state: TravelState) -> dict:
                 f"produce the DestinationInfo for {dest_str}.\n\n"
                 "Research data:\n" + "\n\n".join(tool_results[-6:])
                 if tool_results
-                else f"No tool data was retrieved. Produce a best-effort DestinationInfo for {dest_str}."
+                else (
+                    "No tool data was retrieved. Produce a best-effort "
+                    f"DestinationInfo for {dest_str}."
+                )
             )
         ),
     ]

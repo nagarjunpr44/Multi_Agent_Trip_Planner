@@ -11,6 +11,55 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from config.settings import get_settings
 from schemas.flight import FlightOption, FlightSearchParams, FlightSearchResult, FlightSegment
 
+_CITY_TO_AIRPORT = {
+    "amsterdam": "AMS",
+    "athens": "ATH",
+    "bangkok": "BKK",
+    "barcelona": "BCN",
+    "berlin": "BER",
+    "boston": "BOS",
+    "chicago": "ORD",
+    "delhi": "DEL",
+    "dubai": "DXB",
+    "dublin": "DUB",
+    "frankfurt": "FRA",
+    "hong kong": "HKG",
+    "istanbul": "IST",
+    "kyoto": "KIX",
+    "las vegas": "LAS",
+    "lisbon": "LIS",
+    "london": "LHR",
+    "los angeles": "LAX",
+    "madrid": "MAD",
+    "miami": "MIA",
+    "milan": "MXP",
+    "new york": "JFK",
+    "osaka": "KIX",
+    "paris": "CDG",
+    "rome": "FCO",
+    "san francisco": "SFO",
+    "seattle": "SEA",
+    "seoul": "ICN",
+    "singapore": "SIN",
+    "sydney": "SYD",
+    "tokyo": "HND",
+    "toronto": "YYZ",
+    "vancouver": "YVR",
+    "vienna": "VIE",
+    "zurich": "ZRH",
+}
+
+
+def normalize_airport_code(value: str) -> str:
+    """Return a best-effort IATA airport code for a user-provided city or airport."""
+    cleaned = " ".join(value.strip().lower().replace(",", " ").split())
+    if not cleaned:
+        return ""
+    upper = cleaned.upper()
+    if len(upper) == 3 and upper.isalpha():
+        return upper
+    return _CITY_TO_AIRPORT.get(cleaned, upper[:3])
+
 
 @retry(
     stop=stop_after_attempt(3),
@@ -165,8 +214,8 @@ async def search_flights_tool(
         JSON string of FlightSearchResult
     """
     params = FlightSearchParams(
-        origin=origin.upper(),
-        destination=destination.upper(),
+        origin=normalize_airport_code(origin),
+        destination=normalize_airport_code(destination),
         departure_date=departure_date,
         return_date=return_date or None,
         num_adults=num_adults,
@@ -175,8 +224,13 @@ async def search_flights_tool(
     )
     s = get_settings()
     if not s.apis.serpapi_api_key:
-        return json.dumps({"error": "SERPAPI_API_KEY is not configured. Cannot search flights."})
-        
+        return json.dumps(
+            {
+                "error": "SERPAPI_API_KEY is not configured. Cannot search flights.",
+                "source": "serpapi_config_error",
+            }
+        )
+
     result = await _search_serpapi_flights(params)
 
     return result.model_dump_json()

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from datetime import date
-from enum import Enum
-from typing import Any, Literal, Optional
+from enum import StrEnum
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -12,17 +12,17 @@ class TripConstraints(BaseModel):
 
     model_config = {"extra": "allow"}  # accept UI fields like 'destination'
 
-    budget_usd: Optional[float] = Field(None, description="Total budget in USD")
+    budget_usd: float | None = Field(None, description="Total budget in USD")
     budget_tier: Literal["budget", "mid", "luxury"] = "mid"
-    departure_date: Optional[date] = None
-    return_date: Optional[date] = None
-    duration_days: Optional[int] = None
+    departure_date: date | None = None
+    return_date: date | None = None
+    duration_days: int | None = None
     num_travelers: int = 1
-    origin_city: Optional[str] = None
+    origin_city: str | None = None
     destinations: list[str] = Field(default_factory=list)
     is_multi_city: bool = False
     preferred_airlines: list[str] = Field(default_factory=list)
-    hotel_star_rating: Optional[int] = None
+    hotel_star_rating: int | None = None
     dietary_restrictions: list[str] = Field(default_factory=list)
     activity_preferences: list[str] = Field(default_factory=list)
     accessibility_needs: bool = False
@@ -51,12 +51,12 @@ class TripRequest(BaseModel):
         default="autonomous",
         description="autonomous = runs to completion; hitl = pauses before booking",
     )
-    session_id: Optional[str] = Field(
+    session_id: str | None = Field(
         None, description="Resume existing session if provided"
     )
 
 
-class TripStatus(str, Enum):
+class TripStatus(StrEnum):
     PENDING = "pending"
     QUEUED = "queued"
     RUNNING = "running"
@@ -70,24 +70,24 @@ class TripResponse(BaseModel):
 
     session_id: str
     status: str
-    message: Optional[str] = None
-    user_query: Optional[str] = None
-    constraints: Optional[dict] = None
-    itinerary: Optional[dict] = None
-    booking: Optional[dict] = None
-    raw_state: Optional[dict] = None
-    destination_summary: Optional[str] = None
-    itinerary_markdown: Optional[str] = None
-    total_cost_usd: Optional[float] = None
-    flights_summary: Optional[str] = None
-    hotels_summary: Optional[str] = None
-    experiences_summary: Optional[str] = None
-    validation_score: Optional[float] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    message: str | None = None
+    user_query: str | None = None
+    constraints: dict | None = None
+    itinerary: dict | None = None
+    booking: dict | None = None
+    raw_state: dict | None = None
+    destination_summary: str | None = None
+    itinerary_markdown: str | None = None
+    total_cost_usd: float | None = None
+    flights_summary: str | None = None
+    hotels_summary: str | None = None
+    experiences_summary: str | None = None
+    validation_score: float | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
     errors: list[dict] = Field(default_factory=list)
 
 
 class HITLResumeRequest(BaseModel):
-    approved: bool
-    feedback: Optional[str] = None
+    approved: bool | None = None
+    feedback: str | None = None

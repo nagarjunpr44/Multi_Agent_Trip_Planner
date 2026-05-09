@@ -20,9 +20,12 @@ async def readiness_check() -> dict:
 
     # Redis
     try:
-        redis = await get_redis_client()
-        await redis.ping()
-        checks["redis"] = "ok"
+        redis = get_redis_client()
+        if redis is None:
+            checks["redis"] = "disabled"
+        else:
+            await redis.ping()
+            checks["redis"] = "ok"
     except Exception as exc:
         checks["redis"] = f"error: {exc}"
 
@@ -35,5 +38,5 @@ async def readiness_check() -> dict:
     except Exception as exc:
         checks["postgres"] = f"error: {exc}"
 
-    all_ok = all(v == "ok" for v in checks.values())
+    all_ok = all(v in {"ok", "disabled"} for v in checks.values())
     return {"status": "ok" if all_ok else "degraded", "checks": checks}

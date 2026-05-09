@@ -32,10 +32,10 @@ class Trip(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    itinerary_records: Mapped[list["ItineraryRecord"]] = relationship(
+    itinerary_records: Mapped[list[ItineraryRecord]] = relationship(
         back_populates="trip", cascade="all, delete-orphan"
     )
-    booking_records: Mapped[list["BookingRecord"]] = relationship(
+    booking_records: Mapped[list[BookingRecord]] = relationship(
         back_populates="trip", cascade="all, delete-orphan"
     )
 
@@ -55,7 +55,7 @@ class ItineraryRecord(Base):
         DateTime(timezone=True), server_default=func.now()
     )
 
-    trip: Mapped["Trip"] = relationship(back_populates="itinerary_records")
+    trip: Mapped[Trip] = relationship(back_populates="itinerary_records")
 
 
 class BookingRecord(Base):
@@ -75,7 +75,7 @@ class BookingRecord(Base):
         DateTime(timezone=True), server_default=func.now()
     )
 
-    trip: Mapped["Trip"] = relationship(back_populates="booking_records")
+    trip: Mapped[Trip] = relationship(back_populates="booking_records")
 
 
 class UserPreference(Base):

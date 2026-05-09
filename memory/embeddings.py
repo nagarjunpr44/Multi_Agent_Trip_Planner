@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 from functools import lru_cache
-from typing import Optional
 
 from langchain_openai import OpenAIEmbeddings
 

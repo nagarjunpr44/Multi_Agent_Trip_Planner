@@ -20,11 +20,15 @@ async def websocket_trip_events(websocket: WebSocket, session_id: str) -> None:
     Clients can also send messages to be echoed back (ping/pong keepalive).
     """
     await websocket.accept()
-    redis = await get_redis_client()
+    redis = get_redis_client()
     stream_key = f"trip:events:{session_id}"
     last_id = "0"
 
     await websocket.send_json({"event": "connected", "session_id": session_id})
+    if redis is None:
+        await websocket.send_json({"event": "error", "message": "Redis unavailable"})
+        await websocket.close()
+        return
 
     try:
         while True:
@@ -39,14 +43,15 @@ async def websocket_trip_events(websocket: WebSocket, session_id: str) -> None:
                 for _, entries in messages:
                     for entry_id, fields in entries:
                         last_id = entry_id
-                        event_type = fields.get("event", "message")
-                        payload_raw = fields.get("data", "{}")
+                        payload_raw = fields.get("payload", "{}")
                         try:
                             payload = json.loads(payload_raw)
                         except json.JSONDecodeError:
-                            payload = {"raw": payload_raw}
+                            payload = {"type": "unknown", "data": {"raw": payload_raw}}
 
-                        await websocket.send_json({"event": event_type, **payload})
+                        event_type = payload.get("type", "message")
+                        event_data = payload.get("data", {})
+                        await websocket.send_json({"event": event_type, **event_data})
 
                         if event_type in _TERMINAL_EVENTS:
                             await websocket.close()

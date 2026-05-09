@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from typing import Annotated, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Annotated
 
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agents.graph import get_graph
-from cache.redis_client import get_redis_client, StreamEventPublisher
+from cache.redis_client import StreamEventPublisher
 from db.connection import get_db_session
 
 _publisher_instance = StreamEventPublisher()

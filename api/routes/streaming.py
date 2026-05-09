@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
 from api.dependencies import DBSession

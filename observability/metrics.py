@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Prometheus metrics for AgenticTripPlanner.
 
@@ -11,14 +9,15 @@ Metrics:
   - atp_validation_score          (histogram)
 """
 
+from __future__ import annotations
+
 import logging
-import os
 
 logger = logging.getLogger(__name__)
 
 # ── Lazily imported to avoid hard dependency ───────────────────────────────
 try:
-    from prometheus_client import Counter, Gauge, Histogram, CollectorRegistry, REGISTRY
+    from prometheus_client import Counter, Gauge, Histogram
 
     _ENABLED = True
 except ImportError:

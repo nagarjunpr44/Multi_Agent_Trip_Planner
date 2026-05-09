@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -24,6 +25,9 @@ def get_engine():
         }
         if is_sqlite:
             # SQLite: use StaticPool so all async tasks share one connection
+            sqlite_path = db_url.removeprefix("sqlite+aiosqlite:///")
+            if sqlite_path and sqlite_path != ":memory:":
+                os.makedirs(os.path.dirname(sqlite_path) or ".", exist_ok=True)
             engine_kwargs["poolclass"] = StaticPool
             engine_kwargs["connect_args"] = {"check_same_thread": False}
         else:

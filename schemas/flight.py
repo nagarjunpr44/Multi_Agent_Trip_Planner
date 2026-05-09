@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -25,7 +24,7 @@ class FlightOption(BaseModel):
     price_usd: float
     currency: str = "USD"
     airline: str
-    booking_url: Optional[str] = None
+    booking_url: str | None = None
     is_refundable: bool = False
     baggage_included: bool = False
 
@@ -34,7 +33,7 @@ class FlightSearchParams(BaseModel):
     origin: str = Field(..., description="IATA airport code, e.g. JFK")
     destination: str = Field(..., description="IATA airport code, e.g. NRT")
     departure_date: str = Field(..., description="YYYY-MM-DD")
-    return_date: Optional[str] = Field(None, description="YYYY-MM-DD for round-trip")
+    return_date: str | None = Field(None, description="YYYY-MM-DD for round-trip")
     num_adults: int = 1
     travel_class: str = "ECONOMY"
     max_results: int = 5
@@ -43,7 +42,7 @@ class FlightSearchParams(BaseModel):
 class FlightSearchResult(BaseModel):
     params: FlightSearchParams
     options: list[FlightOption]
-    cheapest_usd: Optional[float] = None
-    fastest_minutes: Optional[int] = None
+    cheapest_usd: float | None = None
+    fastest_minutes: int | None = None
     source: str = "amadeus"
     is_mock: bool = False

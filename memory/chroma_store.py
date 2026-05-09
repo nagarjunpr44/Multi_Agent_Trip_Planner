@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 import chromadb
 from chromadb.config import Settings as ChromaClientSettings
 
@@ -17,7 +15,10 @@ async def get_chroma_client():
         if s.chroma_host in ("embedded", "local", ""):
             # In-process persistent store — no server required
             import os
-            persist_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "chromadb")
+
+            persist_dir = os.path.join(
+                os.path.dirname(os.path.dirname(__file__)), "data", "chromadb"
+            )
             os.makedirs(persist_dir, exist_ok=True)
             _client = await chromadb.AsyncEphemeralClient(
                 settings=ChromaClientSettings(anonymized_telemetry=False),
@@ -53,7 +54,7 @@ class TripMemoryStore:
         doc_id: str,
         document: str,
         embedding: list[float],
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ) -> None:
         collection = await self._get_collection()
         await collection.upsert(
@@ -67,7 +68,7 @@ class TripMemoryStore:
         self,
         query_embedding: list[float],
         n_results: int = 5,
-        where: Optional[dict] = None,
+        where: dict | None = None,
     ) -> list[dict]:
         collection = await self._get_collection()
         results = await collection.query(

@@ -23,11 +23,11 @@ class DatabaseSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     database_url: str = Field(
-        default="postgresql+asyncpg://postgres:postgres@localhost:5432/agentictripplanner",
+        default="sqlite+aiosqlite:///./data/agentictripplanner.db",
         alias="DATABASE_URL",
     )
     checkpoint_db_url: str = Field(
-        default="postgresql://postgres:postgres@localhost:5432/agentictripplanner",
+        default="",
         alias="CHECKPOINT_DB_URL",
     )
 
@@ -88,6 +88,7 @@ class AppSettings(BaseSettings):
     fastapi_base_url: str = Field(
         default="http://localhost:8000", alias="FASTAPI_BASE_URL"
     )
+    hitl_enabled: bool = Field(default=False, alias="HITL_ENABLED")
 
     @field_validator("app_log_level")
     @classmethod

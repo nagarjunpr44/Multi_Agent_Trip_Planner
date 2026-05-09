@@ -3,9 +3,7 @@ from __future__ import annotations
 import operator
 from typing import Annotated, Any, Literal
 
-from langchain_core.messages import BaseMessage
 from langgraph.graph import MessagesState
-from typing_extensions import TypedDict
 
 
 def _merge_dicts(a: dict, b: dict) -> dict:

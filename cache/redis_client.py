@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Optional
+from typing import Any
 
 import redis.asyncio as aioredis
 
 from config.settings import get_settings
 
-_redis_client: Optional[aioredis.Redis] = None
+_redis_client: aioredis.Redis | None = None
 _redis_available: bool = False
 
 
@@ -40,7 +40,7 @@ async def close_redis_client() -> None:
     _redis_available = False
 
 
-def get_redis() -> Optional[aioredis.Redis]:
+def get_redis() -> aioredis.Redis | None:
     return _redis_client if _redis_available else None
 
 
@@ -78,21 +78,30 @@ class StreamEventPublisher:
     async def publish_agent_start(self, session_id: str, agent_name: str) -> None:
         await self.publish(session_id, "agent_start", {"agent": agent_name})
 
-    async def publish_agent_complete(self, session_id: str, agent_name: str, summary: str = "") -> None:
+    async def publish_agent_complete(
+        self, session_id: str, agent_name: str, summary: str = ""
+    ) -> None:
         await self.publish(session_id, "agent_complete", {"agent": agent_name, "summary": summary})
 
     async def publish_graph_complete(self, session_id: str) -> None:
         await self.publish(session_id, "graph_complete", {"session_id": session_id})
 
-    async def publish_error(self, agent_name: str, error: str) -> None:
-        await self.publish("error", {"agent": agent_name, "error": error})
+    async def publish_error(self, session_id: str, agent_name: str, error: str) -> None:
+        await self.publish(session_id, "error", {"agent": agent_name, "error": error})
 
-    async def publish_hitl_pause(self) -> None:
-        await self.publish("hitl_pause", {"message": "Awaiting your approval to proceed with booking."})
+    async def publish_hitl_pause(self, session_id: str) -> None:
+        await self.publish(
+            session_id,
+            "hitl_pause",
+            {"message": "Awaiting your approval to proceed with booking."},
+        )
 
-    async def read_events(self, last_id: str = "0") -> list[dict]:
+    async def read_events(self, session_id: str, last_id: str = "0") -> list[dict]:
         """Read events from the stream starting after last_id."""
-        entries = await self._redis.xread({self._stream_key: last_id}, count=50, block=500)
+        r = get_redis()
+        if r is None:
+            return []
+        entries = await r.xread({self._stream_key(session_id): last_id}, count=50, block=500)
         events = []
         for _stream, messages in entries:
             for msg_id, fields in messages:

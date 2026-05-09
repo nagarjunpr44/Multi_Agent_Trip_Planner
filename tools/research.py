@@ -8,7 +8,6 @@ from langchain_core.tools import tool
 from config.settings import get_settings
 
 
-
 @tool
 async def web_research_tool(query: str, search_depth: str = "basic") -> str:
     """Search the web for up-to-date travel information.
@@ -22,7 +21,9 @@ async def web_research_tool(query: str, search_depth: str = "basic") -> str:
     """
     s = get_settings()
     if not s.apis.tavily_api_key:
-        return json.dumps({"error": "TAVILY_API_KEY is not configured. Cannot perform web research."})
+        return json.dumps(
+            {"error": "TAVILY_API_KEY is not configured. Cannot perform web research."}
+        )
 
     # Use the official langchain-tavily integration — built for agent tool loops
     os.environ["TAVILY_API_KEY"] = s.apis.tavily_api_key

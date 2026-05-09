@@ -66,7 +66,9 @@ async def get_travel_distance_tool(
     """
     s = get_settings()
     if not s.apis.google_maps_api_key:
-        return json.dumps({"error": "GOOGLE_MAPS_API_KEY is not configured. Cannot compute distance."})
-        
+        return json.dumps(
+            {"error": "GOOGLE_MAPS_API_KEY is not configured. Cannot compute distance."}
+        )
+
     result = await _fetch_google_distance(origin, destination, mode, s.apis.google_maps_api_key)
     return json.dumps(result)

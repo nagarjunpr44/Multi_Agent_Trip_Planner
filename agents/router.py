@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 """
 Conditional edge routing functions for the AgenticTripPlanner LangGraph graph.
 
 All functions receive the current TravelState and return either a node name
 (str) or a list of Send() objects for fan-out.
 """
+
+from __future__ import annotations
 
 from langgraph.types import Send
 
@@ -37,6 +37,5 @@ def route_after_supervisor(state: TravelState) -> list[Send]:
         for t in targets
     ]
     return [Send(node_name, state) for node_name in node_names]
-
 
 

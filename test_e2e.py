@@ -8,18 +8,16 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-import json
 import os
-import sys
 import textwrap
 from typing import Any
 
-# ── Environment (no external services needed) ──────────────────────────────
-os.environ.setdefault("MOCK_FALLBACK", "false")   # use real APIs
+# ── Environment ────────────────────────────────────────────────────────────
 os.environ.setdefault("DATABASE_URL", "")          # MemorySaver
 os.environ.setdefault("CHROMA_HOST", "embedded")
 
 import logging
+
 logging.basicConfig(
     level=logging.WARNING,  # suppress noise; we print our own output
     format="%(levelname)s %(name)s: %(message)s",
@@ -68,9 +66,9 @@ def wrap(text: str, indent: int = 4) -> str:
 # ── Main ───────────────────────────────────────────────────────────────────
 
 async def main() -> None:
-    from tools.registry import initialize_registry
+
     from agents.graph import get_graph_sync
-    from langgraph.checkpoint.memory import MemorySaver
+    from tools.registry import initialize_registry
 
     print(banner("AgenticTripPlanner — End-to-End Test", "═"))
     print(f"\n  Query: {TRIP_REQUEST['user_query'][:80]}...")
@@ -94,7 +92,6 @@ async def main() -> None:
 
     # ── Stream events ──────────────────────────────────────────────────────
     print(section("Running agents..."))
-    node_status: dict[str, str] = {}
     final_state: dict[str, Any] = {}
 
     started_nodes: set[str] = set()
@@ -168,7 +165,8 @@ async def main() -> None:
         rec_tier = budget.get("recommended_tier", "mid")
         total = mid.get("total_usd", 0)
         print(f"  Recommended tier : {rec_tier.upper()}")
-        print(f"  Estimated total  : ${total:,.0f} for {TRIP_REQUEST['constraints']['num_travelers']} travelers")
+        travelers = TRIP_REQUEST["constraints"]["num_travelers"]
+        print(f"  Estimated total  : ${total:,.0f} for {travelers} travelers")
         tips = budget.get("savings_tips") or []
         if tips:
             print("\n  Savings Tips:")
@@ -181,11 +179,14 @@ async def main() -> None:
         print(section("DAY-BY-DAY ITINERARY"))
         for day in days:
             day_num = day.get("day_number", "?")
-            city = day.get("city", "")
             theme = day.get("theme") or f"Day {day_num}"
             date_ = day.get("date", "")
             print(f"\n  Day {day_num} — {theme}  {('(' + date_ + ')') if date_ else ''}")
-            for period, label in [("morning", "Morning"), ("afternoon", "Afternoon"), ("evening", "Evening")]:
+            for period, label in [
+                ("morning", "Morning"),
+                ("afternoon", "Afternoon"),
+                ("evening", "Evening"),
+            ]:
                 activities = day.get(period) or []
                 if activities:
                     print(f"    {label}:")

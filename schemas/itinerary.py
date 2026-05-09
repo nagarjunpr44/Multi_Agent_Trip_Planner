@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from pydantic import BaseModel, Field, model_validator
 
 
@@ -13,22 +11,22 @@ class Activity(BaseModel):
     cost_usd: float = 0.0
     category: str = "general"  # sightseeing | food | adventure | culture | transport
     booking_required: bool = False
-    booking_url: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
+    booking_url: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
 
 
 class DayPlan(BaseModel):
     day_number: int
-    date: Optional[str] = None
+    date: str | None = None
     city: str
-    theme: Optional[str] = None
+    theme: str | None = None
     morning: list[Activity] = Field(default_factory=list)
     afternoon: list[Activity] = Field(default_factory=list)
     evening: list[Activity] = Field(default_factory=list)
     travel_between_venues_minutes: int = 0
     day_total_cost_usd: float = 0.0
-    notes: Optional[str] = None
+    notes: str | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -64,12 +62,12 @@ class Experience(BaseModel):
     category: str  # restaurant | attraction | hidden_gem | activity
     address: str
     city: str
-    rating: Optional[float] = None
-    num_reviews: Optional[int] = None
-    price_level: Optional[int] = Field(None, ge=1, le=4)
+    rating: float | None = None
+    num_reviews: int | None = None
+    price_level: int | None = Field(None, ge=1, le=4)
     description: str
-    cuisine_type: Optional[str] = None
-    opening_hours: Optional[str] = None
-    foursquare_id: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
+    cuisine_type: str | None = None
+    opening_hours: str | None = None
+    foursquare_id: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None

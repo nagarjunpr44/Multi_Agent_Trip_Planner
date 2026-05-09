@@ -48,6 +48,7 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://atp_user:atp_password@postgres:5432/agentic_trip_planner
+      CHECKPOINT_DB_URL: postgresql://atp_user:atp_password@postgres:5432/agentic_trip_planner
       REDIS_URL: redis://redis:6379/0
       CHROMA_HOST: chromadb
       CHROMA_PORT: "8000"
@@ -56,12 +57,12 @@ services:
       # Set your API keys via .env file or environment
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      AMADEUS_CLIENT_ID: ${AMADEUS_CLIENT_ID:-}
-      AMADEUS_CLIENT_SECRET: ${AMADEUS_CLIENT_SECRET:-}
+      SERPAPI_API_KEY: ${SERPAPI_API_KEY:-}
       TAVILY_API_KEY: ${TAVILY_API_KEY:-}
       OPENWEATHERMAP_API_KEY: ${OPENWEATHERMAP_API_KEY:-}
       FOURSQUARE_API_KEY: ${FOURSQUARE_API_KEY:-}
-      MOCK_FALLBACK: ${MOCK_FALLBACK:-true}
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+      FIRECRAWL_API_KEY: ${FIRECRAWL_API_KEY:-}
       HITL_ENABLED: ${HITL_ENABLED:-false}
     depends_on:
       postgres:
@@ -84,8 +85,9 @@ services:
     ports:
       - "8501:8501"
     environment:
-      API_URL: http://api:8000
-    command: ["streamlit", "run", "web_ui/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+      FASTAPI_BASE_URL: http://api:8000
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    command: ["uv", "run", "streamlit", "run", "ui/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
     depends_on:
       - api
 

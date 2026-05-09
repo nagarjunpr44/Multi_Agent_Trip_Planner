@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Core LangGraph graph for AgenticTripPlanner.
 
@@ -31,8 +29,9 @@ Architecture:
                            END
 """
 
+from __future__ import annotations
+
 import logging
-import os
 from typing import Any
 
 from langgraph.checkpoint.memory import MemorySaver
@@ -51,6 +50,7 @@ from agents.router import route_after_supervisor
 from agents.state import TravelState
 from agents.supervisor.agent import supervisor_node
 from agents.validator.agent import validator_node
+from config.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +114,7 @@ def _build_graph(checkpointer: Any) -> Any:
     compile_kwargs: dict[str, Any] = {"checkpointer": checkpointer}
 
     # HITL: interrupt BEFORE booking so the user can review the plan
-    hitl_enabled = os.getenv("HITL_ENABLED", "false").lower() == "true"
+    hitl_enabled = get_settings().app.hitl_enabled
     if hitl_enabled:
         compile_kwargs["interrupt_before"] = ["booking_node"]
         logger.info("HITL enabled — graph will pause before booking_node")
@@ -155,9 +155,10 @@ async def _get_checkpointer() -> Any:
     2. AsyncPostgresSaver with single connection (fallback if psycopg_pool missing)
     3. MemorySaver (local dev / no DATABASE_URL)
     """
-    database_url = os.getenv("DATABASE_URL", "")
-    if not database_url:
-        logger.warning("DATABASE_URL not set — using in-memory MemorySaver (not for production)")
+    settings = get_settings()
+    checkpoint_url = settings.db.checkpoint_db_url
+    if not checkpoint_url:
+        logger.warning("CHECKPOINT_DB_URL not set — using in-memory MemorySaver")
         return MemorySaver()
 
     # Attempt 1: connection pool (preferred for production)
@@ -167,7 +168,7 @@ async def _get_checkpointer() -> Any:
         from psycopg_pool import AsyncConnectionPool
 
         pool = AsyncConnectionPool(
-            conninfo=database_url,
+            conninfo=checkpoint_url,
             max_size=10,
             kwargs={"autocommit": True, "row_factory": dict_row},
             open=False,
@@ -192,14 +193,17 @@ async def _get_checkpointer() -> Any:
         from psycopg.rows import dict_row
 
         conn = await psycopg.AsyncConnection.connect(
-            database_url, autocommit=True, row_factory=dict_row
+            checkpoint_url, autocommit=True, row_factory=dict_row
         )
         checkpointer = AsyncPostgresSaver(conn)  # type: ignore[arg-type]
         await checkpointer.setup()
         logger.info("AsyncPostgresSaver initialized with single PostgreSQL connection")
         return checkpointer
     except Exception as exc:
-        logger.error("Failed to initialize PostgreSQL checkpointer (%s) — falling back to MemorySaver", exc)
+        logger.error(
+            "Failed to initialize PostgreSQL checkpointer (%s) — falling back to MemorySaver",
+            exc,
+        )
         return MemorySaver()
 
 

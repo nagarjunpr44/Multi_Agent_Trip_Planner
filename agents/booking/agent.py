@@ -11,7 +11,7 @@ from schemas.agent_output import BookingResult
 
 async def booking_node(state: TravelState) -> dict:
     """
-    Booking Agent — produces a Trip Booking Package from real Amadeus search data.
+    Booking Agent — produces a Trip Booking Package from real provider search data.
 
     Autonomous mode:   builds package immediately and generates a human-readable summary.
     HITL mode:         graph pauses at interrupt_before=["booking_node"];
@@ -125,8 +125,8 @@ def _build_booking_package(
     ret = constraints.get("return_date", "TBD")
     airline = sel_flight.get("airline", "N/A")
     hotel_name = sel_hotel.get("name", "N/A")
-    flight_offer_id = sel_flight.get("offer_id")
-    hotel_offer_id = sel_hotel.get("offer_id")
+    flight_offer_id = sel_flight.get("offer_id") or sel_flight.get("id")
+    hotel_offer_id = sel_hotel.get("offer_id") or sel_hotel.get("id")
 
     booking_instructions = [
         f"FLIGHT: {airline} — {dep} → {ret} for {destination}",

@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-import json
-from typing import Optional
-
 from memory.chroma_store import TripMemoryStore
 from memory.embeddings import doc_id_from_text, embed_text
 
@@ -16,7 +13,7 @@ class ContextManager:
     async def load_user_context(
         self,
         user_query: str,
-        user_id: Optional[str] = None,
+        user_id: str | None = None,
         n_results: int = 3,
     ) -> dict:
         """
@@ -37,7 +34,7 @@ class ContextManager:
         self,
         session_id: str,
         summary: str,
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ) -> None:
         """Persist a trip summary to ChromaDB for future retrieval."""
         try:
