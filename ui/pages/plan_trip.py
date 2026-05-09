@@ -563,3 +563,11 @@ def render():
             st.session_state["planning_done"] = False
             st.session_state["current_session_id"] = None
             st.rerun()
+
+
+if __name__ == "__main__":
+    st.session_state.setdefault(
+        "api_url",
+        os.getenv("FASTAPI_BASE_URL", os.getenv("API_URL", "http://localhost:8000")),
+    )
+    render()

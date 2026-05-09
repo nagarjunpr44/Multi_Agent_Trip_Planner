@@ -1,6 +1,8 @@
 """My Trips — browse and manage past planning sessions."""
 from __future__ import annotations
 
+import os
+
 import requests
 import streamlit as st
 
@@ -34,11 +36,14 @@ def render() -> None:
         created = trip.get("created_at", "")
 
         status_emoji = {
+            "complete": "✅",
             "completed": "✅",
+            "failed": "❌",
+            "queued": "🕒",
             "running": "⏳",
             "pending": "🕒",
             "rejected": "❌",
-            "awaiting_approval": "👤",
+            "paused_hitl": "👤",
         }.get(status, "❓")
 
         with st.expander(f"{status_emoji} {query[:80]}... — {created[:10] if created else 'N/A'}"):
@@ -75,19 +80,27 @@ def _show_trip_detail(api_url: str, session_id: str) -> None:
     if itinerary:
         st.subheader(f"🗺️ Itinerary: {itinerary.get('destination', 'N/A')}")
         for day in itinerary.get("days", []):
-            theme = day.get('theme') or 'Exploration'
+            theme = day.get("theme") or "Exploration"
             st.markdown(
                 f"**Day {day.get('day_number')}: {theme}** ({day.get('date', '')})"
             )
             all_acts = (
-                (day.get('morning') or [])
-                + (day.get('afternoon') or [])
-                + (day.get('evening') or [])
-            ) or day.get('activities', [])
+                (day.get("morning") or [])
+                + (day.get("afternoon") or [])
+                + (day.get("evening") or [])
+            ) or day.get("activities", [])
             for act in all_acts[:5]:
-                cost = f" *${act.get('cost_usd')}*" if act.get('cost_usd') else ""
+                cost = f" *${act.get('cost_usd')}*" if act.get("cost_usd") else ""
                 st.markdown(f"  - {act.get('name', '')}{cost}")
 
     if booking:
         st.subheader("🎫 Booking")
         st.json(booking)
+
+
+if __name__ == "__main__":
+    st.session_state.setdefault(
+        "api_url",
+        os.getenv("FASTAPI_BASE_URL", os.getenv("API_URL", "http://localhost:8000")),
+    )
+    render()
