@@ -159,9 +159,14 @@ class SearchHotelsArgs(BaseModel):
 
 class SearchPlacesArgs(BaseModel):
     """Find real places (sights, restaurants, museums…) with rating, hours and location. \
-Only places found here or by research_city can be added as stops."""
+Only places found here or by research_city can be added as stops. Each call takes a while, \
+so pass every query for an area in one call; prefer broad queries ('historic sights', \
+'seafood restaurant') over one search per landmark."""
 
-    query: str = Field(description="What to look for, e.g. 'ramen' or 'Louvre'")
+    queries: list[str] = Field(
+        min_length=1, max_length=8,
+        description="What to look for, e.g. ['pastel de nata', 'fado restaurant', 'viewpoint']",
+    )
     near: str | None = Field(None, description="Area or city; defaults to the first destination")
 
 
@@ -317,12 +322,12 @@ async def select_hotel(state: dict, option_id: str):
     return f"Selected {trip.hotel.name} ${trip.hotel.total_usd:,.0f} total", _save(trip)
 
 
-async def search_places(state: dict, query: str, near: str | None = None):
+async def search_places(state: dict, queries: list[str], near: str | None = None):
     trip = _load(state)
     near = near or (trip.destinations[0] if trip.destinations else None)
     if not near:
         raise ToolError("Say where to search (near) or set the destination first")
-    found = await places.search_places(query, near)
+    found = await places.search_many(queries, near, max_results=5)
     return [_place_brief(p) for p in found], _merge_places(state, found)
 
 
@@ -429,17 +434,17 @@ async def get_weather(state: dict, city: str | None = None):
         name = city or (trip.destinations[0] if trip.destinations else "")
         if not name:
             raise ToolError("Say which city")
-        found = await places.search_places(name, name, max_results=1)
-        coords = _coords(found[0]) if found else None
-        if coords is None:
-            raise ToolError(f"Could not locate {name}")
+        coords = await weather.geocode(name)
     forecast = await weather.get_weather(*coords, trip.start_date, trip.end_date)
     return forecast or "No forecast yet: the trip dates are beyond the forecast window", {}
 
 
 async def research_city(state: dict, city: str, focus: str):
     brief, found = await research.research_city(city, focus)
-    return brief, ({"places": {**state.get("places", {}), **found}} if found else {})
+    # Hours and location come along so the planner can add these without re-fetching.
+    listed = [_place_brief(Place.model_validate(p)) for p in found.values()]
+    result = {"brief": brief, "places": listed}
+    return result, ({"places": {**state.get("places", {}), **found}} if found else {})
 
 
 async def remember_preference(state: dict, key: str, value: str):
@@ -496,6 +501,8 @@ TOOL_SCHEMAS = [_schema(name, t) for name, t in TOOLS.items()]
 def label(name: str, args: dict) -> str:
     base = TOOLS[name].label if name in TOOLS else name
     detail = next((str(args[k]) for k in ("query", "city", "near", "date") if args.get(k)), "")
+    if args.get("queries"):
+        detail = ", ".join(map(str, args["queries"]))
     if name == "search_flights":
         detail = " → ".join(str(args[k]) for k in ("origin", "destination") if args.get(k))
     return f"{base} {detail}".strip()
@@ -504,6 +511,8 @@ def label(name: str, args: dict) -> str:
 def summarize(result: Any) -> str:
     if isinstance(result, list):
         return f"{len(result)} results"
+    if isinstance(result, dict) and "brief" in result:
+        return f"brief + {len(result['places'])} places"
     if isinstance(result, dict) and "issues" in result:
         errors = sum(i["severity"] == "error" for i in result["issues"])
         return f"{errors} errors, {len(result['issues']) - errors} warnings"

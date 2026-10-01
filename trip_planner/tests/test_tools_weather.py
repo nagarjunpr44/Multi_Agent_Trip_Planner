@@ -71,3 +71,17 @@ async def test_get_weather_errors(monkeypatch):
     }))
     with pytest.raises(ToolError, match="401: Invalid API key"):
         await get_weather(0, 0, date(2026, 5, 1), date(2026, 5, 2))
+
+
+async def test_geocode(monkeypatch):
+    from trip_planner.tools.weather import geocode
+
+    set_key(monkeypatch, "openweathermap_api_key", "k")
+    calls = mock_http(monkeypatch, lambda r: httpx.Response(
+        200, json=[{"name": "Lisbon", "lat": 38.7077, "lon": -9.1365, "country": "PT"}]
+    ))
+    assert await geocode("Lisbon") == (38.7077, -9.1365)
+    assert calls[0].url.path == "/geo/1.0/direct" and calls[0].url.params["q"] == "Lisbon"
+    mock_http(monkeypatch, lambda r: httpx.Response(200, json=[]))
+    with pytest.raises(ToolError, match="Could not locate Atlantis"):
+        await geocode("Atlantis")

@@ -4,6 +4,7 @@ PLACES_PROVIDER picks the backend; both return the same Place model."""
 
 from __future__ import annotations
 
+import asyncio
 from datetime import time
 from urllib.parse import quote
 
@@ -58,6 +59,15 @@ async def search_places(query: str, near: str, max_results: int = 8) -> list[Pla
 
     rows = await cached("places.search", body, fetch, ttl_hours=_TTL_HOURS)
     return [Place.model_validate(r) for r in rows]
+
+
+async def search_many(queries: list[str], near: str, max_results: int = 6) -> list[Place]:
+    """Several searches at once (one scraper run with Apify); deduplicated, in query order."""
+    if get_settings().places_provider == "apify":
+        return await places_apify.search_many(queries, near, max_results)
+    results = await asyncio.gather(*(search_places(q, near, max_results) for q in queries))
+    unique = {p.place_id: p for found in results for p in found}
+    return list(unique.values())
 
 
 async def get_place(place_id: str) -> Place:

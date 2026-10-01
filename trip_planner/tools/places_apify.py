@@ -35,14 +35,20 @@ _WEEKDAYS = {d: i for i, d in enumerate(
 
 
 async def search_places(query: str, near: str, max_results: int = 8) -> list[Place]:
+    return await search_many([query], near, max_results)
+
+
+async def search_many(queries: list[str], near: str, max_results: int = 6) -> list[Place]:
+    """All queries in one scraper run (Apify runs them in parallel); deduplicated."""
     body = {
         **_BASE_INPUT,
-        "searchStringsArray": [query],
+        "searchStringsArray": queries,
         "locationQuery": near,
         "maxCrawledPlacesPerSearch": max_results,
     }
     rows = await cached("places.apify.search", body, lambda: _run(body), ttl_hours=_TTL_HOURS)
-    return [Place.model_validate(r) for r in rows]
+    unique = {r["place_id"]: r for r in rows}
+    return [Place.model_validate(r) for r in unique.values()]
 
 
 async def get_place(place_id: str) -> Place:

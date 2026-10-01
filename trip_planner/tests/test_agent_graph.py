@@ -43,10 +43,10 @@ async def collect(events) -> list[dict]:
 
 
 async def test_plan_check_approve(tmp_path, monkeypatch):
-    async def fake_search(query, near, max_results=8):
+    async def fake_search(queries, near, max_results=6):
         return [Place(place_id="p1", name="MAAT", lat=38.6957, lng=-9.1926)]
 
-    monkeypatch.setattr(agent_tools.places, "search_places", fake_search)
+    monkeypatch.setattr(agent_tools.places, "search_many", fake_search)
     monkeypatch.setattr(agent_tools, "check_trip", lambda trip: [])
     monkeypatch.setattr(agent_tools, "cost_breakdown", lambda trip: {"total": 120.0})
 
@@ -54,7 +54,7 @@ async def test_plan_check_approve(tmp_path, monkeypatch):
         ai("Planning Lisbon.",
            ("update_trip", {"destinations": ["Lisbon"], "start_date": "2026-05-01",
                             "end_date": "2026-05-02"}),
-           ("search_places", {"query": "museum"})),
+           ("search_places", {"queries": ["museum"]})),
         ai("", ("add_stop", {"date": "2026-05-01", "place_id": "p1", "start": "10:00",
                              "duration_min": 90, "note": "river views"}),
            ("check_trip", {})),
@@ -139,17 +139,17 @@ async def test_searches_run_concurrently_and_merge(tmp_path, monkeypatch):
     import asyncio
     import time
 
-    async def slow_search(query, near, max_results=8):
+    async def slow_search(queries, near, max_results=6):
         await asyncio.sleep(0.3)  # like a scraper run
-        return [Place(place_id=query, name=query.title(), lat=38.7, lng=-9.1)]
+        return [Place(place_id=q, name=q.title(), lat=38.7, lng=-9.1) for q in queries]
 
-    monkeypatch.setattr(agent_tools.places, "search_places", slow_search)
+    monkeypatch.setattr(agent_tools.places, "search_many", slow_search)
     model = ScriptedModel(messages=iter([
         ai("",
            ("update_trip", {"destinations": ["Lisbon"], "start_date": "2026-05-01",
                             "end_date": "2026-05-01"}),
-           ("search_places", {"query": "museum"}),
-           ("search_places", {"query": "bakery"}),
+           ("search_places", {"queries": ["museum"]}),
+           ("search_places", {"queries": ["bakery"]}),
            ("add_stop", {"date": "2026-05-01", "place_id": "bakery", "start": "09:00",
                          "duration_min": 30, "note": "pastries"})),
         ai("Done."),

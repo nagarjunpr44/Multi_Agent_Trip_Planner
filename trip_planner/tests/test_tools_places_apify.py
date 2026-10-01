@@ -7,7 +7,7 @@ import pytest
 from trip_planner import store
 from trip_planner.tests.test_tools_http import mock_http, set_key
 from trip_planner.tools import ToolError
-from trip_planner.tools.places import get_place, search_places
+from trip_planner.tools.places import get_place, search_many, search_places
 from trip_planner.tools.places_apify import parse_hours
 
 WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
@@ -119,3 +119,14 @@ async def test_errors(monkeypatch):
     mock_http(monkeypatch, lambda r: httpx.Response(201, json=[]))
     with pytest.raises(ToolError, match="No place found"):
         await get_place("ChIJnone")
+
+
+async def test_search_many_is_one_run_and_dedupes(monkeypatch):
+    other = {**ITEM, "placeId": "ChIJother", "title": "Other"}
+    calls = mock_http(monkeypatch, lambda r: httpx.Response(201, json=[ITEM, other, ITEM]))
+    found = await search_many(["chinese food", "dumplings"], "Staten Island", 4)
+    assert [p.place_id for p in found] == ["ChIJkim", "ChIJother"]
+    assert len(calls) == 1
+    body = json.loads(calls[0].content)
+    assert body["searchStringsArray"] == ["chinese food", "dumplings"]
+    assert body["maxCrawledPlacesPerSearch"] == 4

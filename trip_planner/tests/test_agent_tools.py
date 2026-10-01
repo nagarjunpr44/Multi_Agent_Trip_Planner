@@ -111,3 +111,40 @@ def test_hours_summary():
     hours.append(OpenPeriod(weekday=5, open=dt.time(10), close=dt.time(14)))
     assert hours_summary(hours) == "Mon–Fri 09:00–17:00; Sat 10:00–14:00; Sun closed"
     assert hours_summary(None) == "hours unknown"
+
+
+async def test_research_city_lists_places_with_hours(monkeypatch):
+    hours = [{"weekday": d, "open": "09:00", "close": "18:00"} for d in range(7)]
+
+    async def fake_research(city, focus):
+        return "Belém is great.", {"p9": {**LOUVRE, "place_id": "p9", "name": "MAAT",
+                                          "hours": hours}}
+
+    monkeypatch.setattr(agent_tools.research, "research_city", fake_research)
+    state = make_state()
+    ok, res = await call(state, "research_city", city="Lisbon", focus="art")
+    assert ok and res["brief"] == "Belém is great."
+    assert res["places"][0]["place_id"] == "p9"
+    assert res["places"][0]["hours"] == "Mon–Sun 09:00–18:00"
+    assert "p9" in state["places"]  # addable as a stop straight away
+
+
+async def test_get_weather_geocodes_instead_of_scraping(monkeypatch):
+    async def fake_geocode(city):
+        assert city == "Lisbon"
+        return 38.7, -9.1
+
+    async def fake_weather(lat, lng, start, end):
+        return [{"date": str(start), "summary": "sun", "high_c": 22, "low_c": 15,
+                 "precip_prob": 0}]
+
+    async def no_scrape(*a, **k):
+        raise AssertionError("weather must not trigger a place scrape")
+
+    monkeypatch.setattr(agent_tools.weather, "geocode", fake_geocode)
+    monkeypatch.setattr(agent_tools.weather, "get_weather", fake_weather)
+    monkeypatch.setattr(agent_tools.places, "search_many", no_scrape)
+    monkeypatch.setattr(agent_tools.places, "search_places", no_scrape)
+    state = make_state(destinations=["Lisbon"], start_date="2026-11-12", end_date="2026-11-13")
+    ok, res = await call(state, "get_weather")
+    assert ok and res[0]["summary"] == "sun"

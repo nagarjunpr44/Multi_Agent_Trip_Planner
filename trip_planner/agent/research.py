@@ -33,10 +33,11 @@ async def research_city(city: str, focus: str) -> tuple[str, dict[str, dict]]:
             return f"Error: {e}"
 
     @tool("search_places")
-    async def search_places_tool(query: str) -> str:
-        """Find real places in the city, e.g. "wine bars". Returns place_id, name, rating."""
+    async def search_places_tool(queries: list[str]) -> str:
+        """Find real places in the city. Pass all queries at once (one slow call), e.g.
+        ["wine bars", "historic sights"]. Returns place_id, name, rating."""
         try:
-            results = await places.search_places(query, city)
+            results = await places.search_many(queries, city, max_results=5)
         except ToolError as e:
             return f"Error: {e}"
         for p in results:

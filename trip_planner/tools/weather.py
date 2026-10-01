@@ -6,8 +6,28 @@ from collections import Counter, defaultdict
 from datetime import UTC, date, datetime, timedelta
 
 from trip_planner.config import get_settings
-from trip_planner.tools import http
+from trip_planner.tools import ToolError, http
 from trip_planner.tools.cache import cached
+
+
+async def geocode(city: str) -> tuple[float, float]:
+    """City name → (lat, lng) via OpenWeatherMap's geocoding API (fast, same key)."""
+
+    async def fetch() -> list[float] | None:
+        key = http.require_key(get_settings().openweathermap_api_key, "OPENWEATHERMAP_API_KEY")
+        data = await http.request(
+            "OpenWeatherMap",
+            "GET",
+            "https://api.openweathermap.org/geo/1.0/direct",
+            params={"q": city, "limit": 1, "appid": key},
+        )
+        return [data[0]["lat"], data[0]["lon"]] if data else None
+
+    args = {"city": city.strip().lower()}
+    coords = await cached("weather.geocode", args, fetch, ttl_hours=24 * 30)
+    if coords is None:
+        raise ToolError(f"Could not locate {city}")
+    return coords[0], coords[1]
 
 
 async def get_weather(lat: float, lng: float, start: date, end: date) -> list[dict]:
