@@ -6,7 +6,8 @@ import pytest
 from trip_planner import store
 from trip_planner.tests.test_tools_http import mock_http, set_key
 from trip_planner.tools import ToolError
-from trip_planner.tools.routes import _haversine_km, estimate_minutes, travel_minutes
+from trip_planner.tools.routes import estimate_minutes, travel_minutes
+from trip_planner.trip.geo import haversine_km
 
 # Rossio → Belém, Lisbon: ~7 km apart.
 ROSSIO = (38.7139, -9.1394)
@@ -14,7 +15,7 @@ BELEM = (38.6916, -9.2160)
 
 
 def test_estimates():
-    km = _haversine_km(ROSSIO, BELEM)
+    km = haversine_km(ROSSIO, BELEM)
     assert 6.5 < km < 7.2
     assert estimate_minutes(ROSSIO, BELEM, "walk") == round(km * 1.3 / 4.5 * 60)
     assert estimate_minutes(ROSSIO, BELEM, "transit") == round(8 + km / 18 * 60)
