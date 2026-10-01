@@ -2,7 +2,6 @@
 
     planner  → Sonnet 5.5   every decision + trip edits (tool loop)
     research → Haiku 4.5    reads many search results, returns a brief
-    summary  → Haiku 4.5    tiny jobs (titles, short summaries)
     judge    → Opus 5.5     grades eval runs
 
 Notes for the 5.5 models: no `temperature` (non-default → 400), no forced
@@ -18,7 +17,7 @@ from langchain_anthropic import ChatAnthropic
 
 from trip_planner.config import get_settings
 
-Task = Literal["planner", "research", "summary", "judge"]
+Task = Literal["planner", "research", "judge"]
 
 
 def _supports_effort(model: str) -> bool:
@@ -31,7 +30,6 @@ def get_llm(task: Task) -> ChatAnthropic:
     model, effort, max_tokens = {
         "planner": (s.planner_model, s.planner_effort, 16000),
         "research": (s.research_model, None, 4000),
-        "summary": (s.summary_model, None, 1000),
         "judge": (s.judge_model, s.judge_effort, 8000),
     }[task]
 

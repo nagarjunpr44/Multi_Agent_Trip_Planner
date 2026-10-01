@@ -18,6 +18,7 @@ from pydantic import BaseModel
 
 from trip_planner import store
 from trip_planner.agent import service
+from trip_planner.agent.graph import close_graph
 from trip_planner.config import get_settings
 from trip_planner.trip import check
 from trip_planner.trip.models import Trip
@@ -32,6 +33,7 @@ async def lifespan(_app: FastAPI):
     try:
         yield
     finally:
+        await close_graph()
         await store.close_db()
 
 

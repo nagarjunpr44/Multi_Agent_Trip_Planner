@@ -21,8 +21,6 @@ class Settings(BaseSettings):
     planner_effort: str = Field("medium", alias="PLANNER_EFFORT")
     # research: reads lots of search results and writes a short brief (cheap, fast)
     research_model: str = Field("claude-haiku-4-5", alias="RESEARCH_MODEL")
-    # summary: tiny jobs like titling a trip (cheap, fast)
-    summary_model: str = Field("claude-haiku-4-5", alias="SUMMARY_MODEL")
     # judge: grades eval runs (low volume, accuracy matters)
     judge_model: str = Field("claude-opus-5-5", alias="JUDGE_MODEL")
     judge_effort: str = Field("high", alias="JUDGE_EFFORT")
