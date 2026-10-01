@@ -7,6 +7,7 @@ import math
 from trip_planner.config import get_settings
 from trip_planner.tools import ToolError, http
 from trip_planner.tools.cache import cached
+from trip_planner.trip.geo import haversine_km
 
 _MODES = {"walk": "WALK", "transit": "TRANSIT", "drive": "DRIVE"}
 
@@ -49,7 +50,7 @@ async def _api_minutes(a: tuple[float, float], b: tuple[float, float], mode: str
 def estimate_minutes(a: tuple[float, float], b: tuple[float, float], mode: str) -> int:
     """Straight-line guess: walking at 4.5 km/h on a 1.3x detour; transit/drive add a fixed
     wait/parking overhead to a crow-flies average speed."""
-    km = _haversine_km(a, b)
+    km = haversine_km(a, b)
     minutes = {
         "walk": km * 1.3 / 4.5 * 60,
         "transit": 8 + km / 18 * 60,
@@ -57,10 +58,3 @@ def estimate_minutes(a: tuple[float, float], b: tuple[float, float], mode: str) 
     }[mode]
     return max(1, round(minutes))
 
-
-def _haversine_km(a: tuple[float, float], b: tuple[float, float]) -> float:
-    lat1, lng1, lat2, lng2 = map(math.radians, (*a, *b))
-    h = math.sin((lat2 - lat1) / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(
-        (lng2 - lng1) / 2
-    ) ** 2
-    return 2 * 6371 * math.asin(math.sqrt(h))
