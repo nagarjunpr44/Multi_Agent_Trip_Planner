@@ -1,6 +1,6 @@
 # Wayfarer web UI
 
-Next.js (App Router) + Tailwind + Motion + Leaflet. Built as a **static export** that the
+Next.js (App Router) + Tailwind + Motion. Built as a **static export** that the
 FastAPI app serves from `web/out`, so production is still one Python process.
 
 ```bash
@@ -14,8 +14,8 @@ npm run lint
 
 - `/` landing: window-seat video hero (crossfading scenes behind a train-window overlay, trip
   prompt, scene switcher), destination carousel, your trips, how it works.
-- `/plan/?id=<trip>` workspace: chat | itinerary | map. Below 1280px the itinerary and map
-  share a column (toggle); below 1024px a bottom tab bar switches Chat / Itinerary / Map.
+- `/plan/?id=<trip>` workspace: chat | itinerary side by side; below 1024px a bottom tab bar
+  switches Chat / Itinerary.
 
 ## Photos
 
@@ -39,15 +39,9 @@ video's first frame, shown until the video loads (and instead of it with reduced
 saver). The MP4s currently stream from an external CDN; for production, put them in
 `public/videos/` (or your own CDN) and update `src`. `window.webp` is the train-window overlay.
 
-## Map tiles
-
-Defaults to OpenStreetMap tiles, which are fine for development and light use. For production
-traffic set `NEXT_PUBLIC_MAP_TILES` (and `NEXT_PUBLIC_MAP_ATTRIBUTION`) at build time to a tile
-provider such as MapTiler or Stadia.
-
 ## Code map
 
 - `src/lib/api.ts` fetch + SSE client (API key prompt via `components/AuthGate.tsx`)
 - `src/lib/types.ts` mirrors `trip_planner/trip/models.py` and the stream event schema
 - `src/components/plan/useTrip.ts` loads a trip and folds stream events into chat messages
-- `src/components/plan/{ChatPanel,Itinerary,TripMap}.tsx` the three workspace panes
+- `src/components/plan/{ChatPanel,Itinerary}.tsx` the two workspace panes

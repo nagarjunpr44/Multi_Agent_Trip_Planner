@@ -26,7 +26,7 @@ const IDEAS = [
 ];
 
 // Capabilities, not vanity metrics: every line here is something the planner actually does.
-const STATS = ["Live flight & hotel prices", "Opening hours checked", "Walking times between stops", "Day-by-day plans on a map"];
+const STATS = ["Live flight & hotel prices", "Opening hours checked", "Walking times between stops", "Day-by-day itineraries"];
 
 const sans = "font-sans";
 
@@ -120,7 +120,7 @@ export function Hero({ onStart, starting, error }: { onStart: (prompt: string) =
           </h1>
 
           <p className={clsx(sans, "mt-5 max-w-xl text-[15px] leading-relaxed opacity-90 sm:text-base")}>
-            Tell Wayfarer where you&apos;re dreaming of. It searches real flights, hotels and places, then builds a day-by-day plan you can follow on a map.
+            Tell Wayfarer where you&apos;re dreaming of. It searches real flights, hotels and places, then builds a day-by-day plan you can actually follow.
           </p>
 
           <PromptPill starting={starting} onStart={onStart} />

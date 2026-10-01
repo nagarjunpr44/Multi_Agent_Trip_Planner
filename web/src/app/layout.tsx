@@ -8,7 +8,7 @@ const instrument = Instrument_Serif({ subsets: ["latin"], weight: "400", style: 
 
 export const metadata: Metadata = {
   title: "Wayfarer · AI trip planner",
-  description: "Describe a trip in a sentence. Get real flights, hotels and a day-by-day plan on a map.",
+  description: "Describe a trip in a sentence. Get real flights, hotels and a day-by-day plan.",
   icons: { icon: "/icon.svg" },
 };
 

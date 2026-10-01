@@ -1,6 +1,6 @@
 "use client";
 
-import { createElement, useEffect, useRef } from "react";
+import { createElement, useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import {
   AlertTriangle, ArrowUpRight, BedDouble, Bike, Building2, Car, Coffee, Footprints, Landmark, MapPin, Mountain,
@@ -13,7 +13,7 @@ import { dateRange, fmtClock, fmtDate, fmtDuration, hhmm, nights, safeUrl, usd }
 import type { Cost, Day, Flight, Hotel, Issue, Stop } from "@/lib/types";
 import type { TripState } from "./useTrip";
 
-// Bright enough to read on the dark panels and the dark map.
+// Bright enough to read on the dark panels.
 export const DAY_COLORS = ["#ff6a4a", "#4fd1bf", "#f2b54a", "#a493ff", "#5aa9ff", "#ff7eb6", "#7bd88f"];
 
 const inView = (i = 0) => ({
@@ -23,21 +23,18 @@ const inView = (i = 0) => ({
   transition: { duration: 0.6, delay: Math.min(i, 6) * 0.05, ease: [0.16, 1, 0.3, 1] as const },
 });
 
-export function Itinerary({ state, busy, activeDay, onActiveDay, hoverStop, onHoverStop, onReview, className }: {
+export function Itinerary({ state, busy, onReview, className }: {
   state: TripState | null;
   busy: boolean;
-  activeDay: number;
-  onActiveDay: (i: number) => void;
-  hoverStop: string | null;
-  onHoverStop: (id: string | null) => void;
   onReview: () => void;
   className?: string;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
+  const [activeDay, onActiveDay] = useState(0);
   const trip = state?.trip;
   const days = trip?.days ?? [];
 
-  // Scrollspy: the day nearest the top of the pane becomes active (drives the map).
+  // Scrollspy: the day nearest the top of the pane becomes the highlighted day tab.
   useEffect(() => {
     const root = scroller.current;
     if (!root || !days.length) return;
@@ -50,7 +47,7 @@ export function Itinerary({ state, busy, activeDay, onActiveDay, hoverStop, onHo
     );
     root.querySelectorAll("[data-day]").forEach((n) => io.observe(n));
     return () => io.disconnect();
-  }, [days.length, onActiveDay]);
+  }, [days.length]);
 
   const jump = (i: number) => {
     onActiveDay(i);
@@ -82,7 +79,7 @@ export function Itinerary({ state, busy, activeDay, onActiveDay, hoverStop, onHo
           </div>
         </Photo>
 
-        <div className="relative -mt-10 space-y-8 px-4 pb-24 sm:px-6">
+        <div className="relative mx-auto -mt-10 max-w-4xl space-y-8 px-4 pb-24 sm:px-6">
           {/* At a glance */}
           <div className={clsx("grid gap-3", trip.flight ? "@lg:grid-cols-2 @5xl:grid-cols-[1fr_1.4fr_1fr]" : "@lg:grid-cols-3")}>
             <BudgetCard cost={state!.cost} />
@@ -113,7 +110,7 @@ export function Itinerary({ state, busy, activeDay, onActiveDay, hoverStop, onHo
                 ))}
               </nav>
               <div className="mt-6 space-y-12">
-                {days.map((d, i) => <DaySection key={d.date} day={d} index={i} hoverStop={hoverStop} onHoverStop={onHoverStop} />)}
+                {days.map((d, i) => <DaySection key={d.date} day={d} index={i} />)}
               </div>
             </div>
           ) : (
@@ -283,7 +280,7 @@ function placeIcon(types: string[] = []) {
 }
 const PlaceIcon = ({ types, className }: { types?: string[]; className?: string }) => createElement(placeIcon(types), { className });
 
-function DaySection({ day, index, hoverStop, onHoverStop }: { day: Day; index: number; hoverStop: string | null; onHoverStop: (id: string | null) => void }) {
+function DaySection({ day, index }: { day: Day; index: number }) {
   const color = DAY_COLORS[index % DAY_COLORS.length];
   const spend = day.stops.reduce((s, x) => s + (x.est_cost_usd ?? 0), 0);
   return (
@@ -301,7 +298,7 @@ function DaySection({ day, index, hoverStop, onHoverStop }: { day: Day; index: n
         {day.stops.map((s, i) => (
           <li key={s.id}>
             {s.travel_from_prev_min != null && i > 0 && <Leg stop={s} color={color} />}
-            <StopCard stop={s} n={i + 1} color={color} i={i} active={hoverStop === s.id} onHover={onHoverStop} />
+            <StopCard stop={s} n={i + 1} color={color} i={i} />
           </li>
         ))}
       </ol>
@@ -322,13 +319,12 @@ function Leg({ stop, color }: { stop: Stop; color: string }) {
   );
 }
 
-function StopCard({ stop: s, n, color, i, active, onHover }: { stop: Stop; n: number; color: string; i: number; active: boolean; onHover: (id: string | null) => void }) {
+function StopCard({ stop: s, n, color, i }: { stop: Stop; n: number; color: string; i: number }) {
   const p = s.place;
   const maps = safeUrl(p.maps_url);
   return (
     <motion.article {...inView(i)}
-      onMouseEnter={() => onHover(s.id)} onMouseLeave={() => onHover(null)} onFocus={() => onHover(s.id)} onBlur={() => onHover(null)}
-      className={clsx("glass-card group flex gap-4 rounded-2xl p-3 ring-1 transition-[box-shadow,transform,background-color] duration-300 hover:-translate-y-0.5 hover:bg-white/[0.08]", active ? "ring-coral/70" : "ring-transparent")}>
+      className="glass-card group flex gap-4 rounded-2xl p-3 transition-[transform,background-color] duration-300 hover:-translate-y-0.5 hover:bg-white/[0.08]">
       <div className="relative shrink-0">
         <Photo src={p.photo_url || undefined} label={p.name} className="size-24 rounded-xl sm:size-28">
           {!p.photo_url && <span className="absolute inset-0 grid place-items-center text-white/85"><PlaceIcon types={p.types} className="size-8 drop-shadow" /></span>}

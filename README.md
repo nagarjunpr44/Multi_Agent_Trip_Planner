@@ -113,7 +113,7 @@ trip_planner/
   api/           FastAPI (serves the built web UI from web/out)
   evals/         cases, runner, judge
   tests/
-web/             Next.js web UI (static export): landing page, chat + itinerary + map workspace
+web/             Next.js web UI (static export): landing page, chat + itinerary workspace
 ```
 
 ## Docker

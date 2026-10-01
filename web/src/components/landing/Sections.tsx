@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
-import { ArrowLeft, ArrowRight, CalendarDays, Map, MessageCircle, Plane, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarDays, MessageCircle, Plane, Route, Trash2 } from "lucide-react";
 import clsx from "clsx";
 import { Photo } from "@/components/Photo";
 import { Logo } from "@/components/Header";
@@ -101,7 +101,7 @@ export function Destinations({ onStart }: { onStart: (prompt: string) => void })
 const STEPS = [
   { icon: MessageCircle, title: "Say it like you'd text a friend", body: "Where, when, who's coming and a rough budget. Ask for changes the same way." },
   { icon: Plane, title: "It searches the real thing", body: "Live flights and hotels, places with opening hours, and travel times between every stop." },
-  { icon: Map, title: "See your days on a map", body: "Each day is clustered by neighborhood so you're not zig-zagging across town. Approve and book." },
+  { icon: Route, title: "Get a day-by-day plan", body: "Each day is clustered by neighborhood so you're not zig-zagging across town. Approve and book." },
 ];
 
 export function HowItWorks() {

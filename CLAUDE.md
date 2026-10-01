@@ -10,7 +10,7 @@ One planner agent (LangGraph) edits a structured `Trip` document through tools; 
 - `trip_planner/agent/`: graph (`planner → tools → approval`), tool handlers, prompts, research sub-agent (cheap model), `service.py` (public API + event schema), CLI.
 - `trip_planner/llm.py`: the only place LLM clients are built. `LLM_PROVIDER` (default openai) + per-task models: planner = gpt-5.5, research = gpt-5.4-mini, judge = gpt-5.5 (Anthropic: Sonnet 5.5 / Haiku 4.5 / Opus 5.5).
 - `trip_planner/api/`: FastAPI SSE endpoints; serves the built web UI from `web/out`. `trip_planner/evals/`: eval cases, runner, LLM judge.
-- `web/`: Next.js web UI (static export, Tailwind, Motion, Leaflet). `src/lib/types.ts` mirrors the Trip schema and stream events; keep them in sync when `models.py` or the event schema changes.
+- `web/`: Next.js web UI (static export, Tailwind, Motion). `src/lib/types.ts` mirrors the Trip schema and stream events; keep them in sync when `models.py` or the event schema changes.
 
 ## Rules
 - OpenAI: use the Responses API (tools + reasoning effort are rejected on Chat Completions).
