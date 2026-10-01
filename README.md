@@ -15,7 +15,7 @@ You ⇄ Chat API (SSE streaming)
    ┌─────┴──────────────────────────────┐
    Search tools                         Trip-editing tools
    flights · hotels (SerpApi)           update_trip · add/update/remove_stop
-   places + hours (Google Places)       select_flight · select_hotel · set_day
+   places + hours (Apify Google Maps)   select_flight · select_hotel · set_day
    travel times (Google Routes)         check_trip  ← deterministic validator
    weather (OpenWeatherMap)             request_approval  ← pauses for the user
    web search (Tavily)
@@ -55,13 +55,17 @@ prefixes are cached on both providers.
 
 ```bash
 uv sync
-cp .env.example .env      # add OPENAI_API_KEY, SERPAPI_API_KEY, GOOGLE_MAPS_API_KEY, TAVILY_API_KEY, OPENWEATHERMAP_API_KEY
+cp .env.example .env      # add OPENAI_API_KEY, SERPAPI_API_KEY, APIFY_API_TOKEN, TAVILY_API_KEY, OPENWEATHERMAP_API_KEY
 uv run python -m trip_planner.api          # web UI + API on http://127.0.0.1:8000
 uv run python -m trip_planner.agent.cli    # or chat in the terminal
 ```
 
-Google Maps key: enable **Places API (New)** and **Routes API**. Without a Routes key,
-travel times fall back to straight-line estimates.
+Place search uses Apify's Google Maps scraper (`compass/crawler-google-places`, billed
+per scraped place). Each new search takes a few seconds to tens of seconds, so results
+are cached for a week, and consecutive searches in one planner step run in parallel.
+Set `PLACES_PROVIDER=google` to use Google Places API (New) instead. Travel times use
+the Google **Routes API** (`GOOGLE_MAPS_API_KEY`). Without it, they fall back to
+straight-line estimates.
 
 ## API
 
