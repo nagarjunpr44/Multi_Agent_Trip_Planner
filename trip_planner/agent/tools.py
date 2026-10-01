@@ -521,6 +521,15 @@ def _error_text(e: Exception) -> str:
     return str(e) or type(e).__name__
 
 
+# Tools that never edit the trip: they only add entries to the LOOKUPS dicts, so a
+# batch of them can run concurrently (graph.tools merges their updates).
+READ_ONLY = {
+    "search_flights", "search_hotels", "search_places", "get_place_details",
+    "web_search", "get_weather", "research_city",
+}
+LOOKUPS = {"places", "flight_options", "hotel_options"}
+
+
 async def run_tool(state: dict, name: str, args: dict) -> tuple[bool, Any, dict]:
     """(ok, result, state_updates). Never raises: failures become an error result."""
     t = TOOLS.get(name)

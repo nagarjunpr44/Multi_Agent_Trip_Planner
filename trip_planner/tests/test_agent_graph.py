@@ -133,3 +133,41 @@ async def test_errors_block_approval_and_new_message_declines(tmp_path, monkeypa
         assert "actually change day 2" in state.values["messages"][-2].content
     finally:
         await store.close_db()
+
+
+async def test_searches_run_concurrently_and_merge(tmp_path, monkeypatch):
+    import asyncio
+    import time
+
+    async def slow_search(query, near, max_results=8):
+        await asyncio.sleep(0.3)  # like a scraper run
+        return [Place(place_id=query, name=query.title(), lat=38.7, lng=-9.1)]
+
+    monkeypatch.setattr(agent_tools.places, "search_places", slow_search)
+    model = ScriptedModel(messages=iter([
+        ai("",
+           ("update_trip", {"destinations": ["Lisbon"], "start_date": "2026-05-01",
+                            "end_date": "2026-05-01"}),
+           ("search_places", {"query": "museum"}),
+           ("search_places", {"query": "bakery"}),
+           ("add_stop", {"date": "2026-05-01", "place_id": "bakery", "start": "09:00",
+                         "duration_min": 30, "note": "pastries"})),
+        ai("Done."),
+    ]))
+    monkeypatch.setattr(graph_mod, "_graph", graph_mod.build_graph(InMemorySaver(), model))
+
+    await store.init_db(f"sqlite+aiosqlite:///{tmp_path}/t.db")
+    try:
+        trip_id = await service.new_trip()
+        t0 = time.monotonic()
+        events = await collect(service.run_turn(trip_id, "Lisbon"))
+        elapsed = time.monotonic() - t0
+        ends = [(e["name"], e["ok"]) for e in events if e["type"] == "tool_end"]
+        assert ends == [("update_trip", True), ("search_places", True),
+                        ("search_places", True), ("add_stop", True)], events
+        assert elapsed < 0.55  # two 0.3s searches overlapped instead of 0.6s in a row
+        state = await graph_mod._graph.aget_state({"configurable": {"thread_id": trip_id}})
+        assert set(state.values["places"]) == {"museum", "bakery"}  # both kept
+        assert state.values["trip"]["days"][0]["stops"][0]["place"]["name"] == "Bakery"
+    finally:
+        await store.close_db()

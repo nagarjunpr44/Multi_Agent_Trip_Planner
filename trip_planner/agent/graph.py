@@ -55,6 +55,18 @@ def _tool_message(call: dict, content: Any, ok: bool = True) -> ToolMessage:
     )
 
 
+def _batches(calls: list[dict]) -> list[list[dict]]:
+    """Group consecutive read-only calls; every other call is its own batch."""
+    read_only = agent_tools.READ_ONLY
+    out: list[list[dict]] = []
+    for call in calls:
+        if call["name"] in read_only and out and out[-1][0]["name"] in read_only:
+            out[-1].append(call)
+        else:
+            out.append([call])
+    return out
+
+
 def _booking_links(trip: Trip) -> str:
     lines = [
         "Approved. Booking links:",
@@ -78,17 +90,24 @@ def build_graph(checkpointer: BaseCheckpointSaver, llm: BaseChatModel | None = N
     async def tools(state: PlannerState) -> dict:
         write = get_stream_writer()
         work, updates, messages = dict(state), {}, []
-        for call in state["messages"][-1].tool_calls:
-            name, args = call["name"], call["args"]
-            if name == "request_approval":
-                continue
-            write({"type": "tool_start", "name": name, "label": agent_tools.label(name, args)})
-            ok, result, changed = await agent_tools.run_tool(work, name, args)
-            work.update(changed)
-            updates.update(changed)
-            summary = agent_tools.summarize(result) if ok else str(result)
-            write({"type": "tool_end", "name": name, "ok": ok, "summary": summary})
-            messages.append(_tool_message(call, result, ok))
+        calls = [c for c in state["messages"][-1].tool_calls if c["name"] != "request_approval"]
+        for batch in _batches(calls):
+            for call in batch:
+                label = agent_tools.label(call["name"], call["args"])
+                write({"type": "tool_start", "name": call["name"], "label": label})
+            # Searches in a batch run concurrently on the same snapshot (they only add
+            # to lookup dicts); trip edits are batches of one, run in order.
+            results = await asyncio.gather(
+                *(agent_tools.run_tool(work, c["name"], c["args"]) for c in batch)
+            )
+            for call, (ok, result, changed) in zip(batch, results, strict=True):
+                for key, value in changed.items():
+                    if key in agent_tools.LOOKUPS:  # merge, so parallel searches don't clobber
+                        value = {**work.get(key, {}), **value}
+                    work[key] = updates[key] = value
+                summary = agent_tools.summarize(result) if ok else str(result)
+                write({"type": "tool_end", "name": call["name"], "ok": ok, "summary": summary})
+                messages.append(_tool_message(call, result, ok))
         return {**updates, "messages": messages}
 
     async def approval(state: PlannerState) -> dict:
