@@ -87,7 +87,10 @@ async function stream(path, body) {
           const chip = chips.find((c) => c.dataset.name === ev.name && !c.dataset.done);
           if (chip) {
             chip.dataset.done = "1";
-            chip.textContent = ev.ok ? "✓ " + chip.dataset.label : `✗ ${chip.dataset.label}: ${ev.summary}`;
+            const took = ev.ms >= 1000 ? ` · ${(ev.ms / 1000).toFixed(1)}s` : "";
+            chip.textContent = ev.ok
+              ? `✓ ${chip.dataset.label}${took}`
+              : `✗ ${chip.dataset.label}: ${ev.summary}${took}`;
             if (!ev.ok) chip.classList.add("fail");
           }
         } else if (ev.type === "trip") {

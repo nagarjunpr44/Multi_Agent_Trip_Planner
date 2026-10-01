@@ -166,6 +166,8 @@ async def test_searches_run_concurrently_and_merge(tmp_path, monkeypatch):
         assert ends == [("update_trip", True), ("search_places", True),
                         ("search_places", True), ("add_stop", True)], events
         assert elapsed < 0.55  # two 0.3s searches overlapped instead of 0.6s in a row
+        ms = {e["name"]: e["ms"] for e in events if e["type"] == "tool_end"}
+        assert 280 <= ms["search_places"] < 550 and ms["add_stop"] < 100
         state = await graph_mod._graph.aget_state({"configurable": {"thread_id": trip_id}})
         assert set(state.values["places"]) == {"museum", "bakery"}  # both kept
         assert state.values["trip"]["days"][0]["stops"][0]["place"]["name"] == "Bakery"

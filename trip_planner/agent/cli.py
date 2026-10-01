@@ -22,6 +22,8 @@ async def _print_events(events) -> dict | None:
                 print(f"    failed: {e['summary']}")
             case "tool_end" if e["name"] == "check_trip":
                 print(f"    {e['summary']}")
+            case "tool_end" if e.get("ms", 0) >= 1000:
+                print(f"    done in {e['ms'] / 1000:.1f}s")
             case "approval":
                 approval = e
             case "error":

@@ -3,7 +3,7 @@
 Event stream contract (dicts yielded by run_turn):
     {"type": "text", "delta": str}                       planner's visible text, streamed
     {"type": "tool_start", "name": str, "label": str}    e.g. label "Searching flights LIS → NRT"
-    {"type": "tool_end", "name": str, "ok": bool, "summary": str}
+    {"type": "tool_end", "name": str, "ok": bool, "summary": str, "ms": int}
     {"type": "trip", "trip": dict}                       full Trip after any change
     {"type": "approval", "summary": str, "total_usd": float}   graph paused for approval
     {"type": "done"}

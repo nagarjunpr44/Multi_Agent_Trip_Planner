@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import time
 from typing import Any
 from urllib.parse import quote_plus
 
@@ -53,6 +54,12 @@ def _tool_message(call: dict, content: Any, ok: bool = True) -> ToolMessage:
         name=call["name"],
         status="success" if ok else "error",
     )
+
+
+async def _timed(state: dict, call: dict) -> tuple[bool, Any, dict, int]:
+    t0 = time.monotonic()
+    ok, result, changed = await agent_tools.run_tool(state, call["name"], call["args"])
+    return ok, result, changed, round((time.monotonic() - t0) * 1000)
 
 
 def _batches(calls: list[dict]) -> list[list[dict]]:
@@ -97,16 +104,17 @@ def build_graph(checkpointer: BaseCheckpointSaver, llm: BaseChatModel | None = N
                 write({"type": "tool_start", "name": call["name"], "label": label})
             # Searches in a batch run concurrently on the same snapshot (they only add
             # to lookup dicts); trip edits are batches of one, run in order.
-            results = await asyncio.gather(
-                *(agent_tools.run_tool(work, c["name"], c["args"]) for c in batch)
-            )
-            for call, (ok, result, changed) in zip(batch, results, strict=True):
+            results = await asyncio.gather(*(_timed(work, c) for c in batch))
+            for call, (ok, result, changed, ms) in zip(batch, results, strict=True):
                 for key, value in changed.items():
                     if key in agent_tools.LOOKUPS:  # merge, so parallel searches don't clobber
                         value = {**work.get(key, {}), **value}
                     work[key] = updates[key] = value
                 summary = agent_tools.summarize(result) if ok else str(result)
-                write({"type": "tool_end", "name": call["name"], "ok": ok, "summary": summary})
+                write({
+                    "type": "tool_end", "name": call["name"], "ok": ok, "summary": summary,
+                    "ms": ms,
+                })
                 messages.append(_tool_message(call, result, ok))
         return {**updates, "messages": messages}
 
