@@ -1,0 +1,63 @@
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+@theme {
+  --color-ink: #0e1a24;
+  --color-ink-soft: #55606b;
+  --color-sand: #f6f2ec;
+  --color-sand-2: #ece5da;
+  --color-line: #e3dbcf;
+  --color-coral: #ff5b3a;
+  --color-coral-deep: #e2411f;
+  --color-lagoon: #0f766e;
+  --color-lagoon-soft: #d9efe9;
+  --color-gold: #e9a23b;
+
+  --font-display: var(--font-instrument), "Iowan Old Style", Georgia, serif;
+  --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
+
+  --shadow-card: 0 1px 2px rgb(14 26 36 / 0.05), 0 12px 32px -16px rgb(14 26 36 / 0.25);
+  --shadow-lift: 0 2px 4px rgb(14 26 36 / 0.06), 0 28px 60px -24px rgb(14 26 36 / 0.45);
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  @keyframes shimmer {
+    to { background-position: -200% 0; }
+  }
+}
+
+@layer base {
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--color-sand);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--color-coral); color: white; }
+  :focus-visible { outline: 2px solid var(--color-coral); outline-offset: 2px; }
+}
+
+/* Thin, unobtrusive scrollbars inside panes */
+.pane { scrollbar-width: thin; scrollbar-color: var(--color-line) transparent; }
+
+/* Leaflet: match the app's typography and soften controls */
+.leaflet-container { font-family: var(--font-sans); background: var(--color-sand-2); }
+/* Mute OSM's busy palette into the app's warm neutrals */
+.leaflet-tile-pane { filter: saturate(0.55) sepia(0.12) brightness(1.04) contrast(0.95); }
+.leaflet-control-zoom a { border-radius: 10px !important; border: none !important; box-shadow: var(--shadow-card); }
+.leaflet-control-zoom { border: none !important; display: flex; flex-direction: column; gap: 6px; }
+.leaflet-popup-content-wrapper { border-radius: 14px; box-shadow: var(--shadow-lift); }
+.pin {
+  display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+  background: var(--color-coral); color: white; font: 700 13px var(--font-sans);
+  border: 3px solid white; box-shadow: 0 6px 16px -4px rgb(14 26 36 / 0.5);
+  transition: transform .25s var(--ease-out-expo);
+}
+.pin.active { transform: scale(1.25); background: var(--color-ink); }
+.pin.hotel { background: var(--color-lagoon); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}

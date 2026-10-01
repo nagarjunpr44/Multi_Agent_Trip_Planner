@@ -12,7 +12,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -24,7 +24,8 @@ from trip_planner.trip import check
 from trip_planner.trip.models import Trip
 
 log = logging.getLogger(__name__)
-STATIC = Path(__file__).parent / "static"
+# Built Next.js UI (`cd web && npm run build`); see web/README.md.
+WEB = Path(__file__).resolve().parents[2] / "web" / "out"
 
 
 @asynccontextmanager
@@ -121,7 +122,18 @@ async def create_trip(user: str = Depends(current_user)):
 @app.get("/trips")
 async def list_trips(user: str = Depends(current_user)):
     rows = await store.list_trips(user)
-    return [{k: r[k] for k in ("id", "title", "status", "updated_at")} for r in rows]
+    keys = ("id", "title", "status", "updated_at")
+    return [{k: r[k] for k in keys} | _card(r["trip"] or {}) for r in rows]
+
+
+def _card(trip: dict) -> dict:
+    """What a trip card needs beyond the row: where, when, how long."""
+    return {
+        "destination": next(iter(trip.get("destinations") or []), ""),
+        "start_date": trip.get("start_date"),
+        "end_date": trip.get("end_date"),
+        "days": len(trip.get("days") or []),
+    }
 
 
 @app.get("/trips/{trip_id}")
@@ -149,9 +161,11 @@ async def post_approval(trip_id: str, body: ApprovalIn, _user: str = Depends(cur
     return sse(service.resume(trip_id, body.approved, body.note))
 
 
-@app.get("/", include_in_schema=False)
-async def index():
-    return FileResponse(STATIC / "index.html")
-
-
-app.mount("/static", StaticFiles(directory=STATIC), name="static")
+# Mounted last so the API routes above take precedence.
+if WEB.is_dir():
+    app.mount("/", StaticFiles(directory=WEB, html=True), name="web")
+else:
+    @app.get("/", include_in_schema=False)
+    async def index():
+        hint = "Web UI not built. Run: cd web && npm install && npm run build"
+        return PlainTextResponse(hint, status_code=503)

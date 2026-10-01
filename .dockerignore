@@ -33,3 +33,8 @@ tests/
 /tmp/
 
 data/
+
+# Web UI (built in its own Docker stage)
+web/node_modules/
+web/.next/
+web/out/

@@ -1,3 +1,11 @@
+# Build the Next.js web UI (static export -> /web/out)
+FROM node:20-slim AS web
+WORKDIR /web
+COPY web/package.json web/package-lock.json ./
+RUN npm ci
+COPY web/ ./
+RUN npm run build
+
 FROM python:3.12-slim
 
 WORKDIR /app
@@ -12,6 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy project files and install dependencies
 COPY . .
+COPY --from=web /web/out ./web/out
 RUN uv sync --no-dev
 
 # Create non-root user

@@ -56,9 +56,13 @@ prefixes are cached on both providers.
 ```bash
 uv sync
 cp .env.example .env      # add OPENAI_API_KEY, SERPAPI_API_KEY, APIFY_API_TOKEN, TAVILY_API_KEY, OPENWEATHERMAP_API_KEY
+(cd web && npm install && npm run build)   # build the Next.js web UI once (served by the API)
 uv run python -m trip_planner.api          # web UI + API on http://127.0.0.1:8000
 uv run python -m trip_planner.agent.cli    # or chat in the terminal
 ```
+
+Working on the UI? Run `cd web && npm run dev` (http://localhost:3000, hot reload) next to
+the API; it proxies API calls to `:8000`. See [web/README.md](web/README.md) for adding photos.
 
 Place search uses Apify's Google Maps scraper (`compass/crawler-google-places`, billed
 per scraped place). Each new search takes a few seconds to tens of seconds, so results
@@ -106,9 +110,10 @@ trip_planner/
   trip/          Trip schema, check_trip, geo helpers   (pure code)
   tools/         async API clients, cached               (no LLM)
   agent/         LangGraph planner, tools, prompts, research sub-agent, CLI
-  api/           FastAPI + static web UI
+  api/           FastAPI (serves the built web UI from web/out)
   evals/         cases, runner, judge
   tests/
+web/             Next.js web UI (static export): landing page, chat + itinerary + map workspace
 ```
 
 ## Docker

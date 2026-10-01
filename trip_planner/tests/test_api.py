@@ -69,14 +69,22 @@ def events(resp):
 def test_health_and_index(client):
     assert client.get("/health").json() == {"status": "ok"}
     r = client.get("/")
-    assert r.status_code == 200 and "<html" in r.text
-    assert client.get("/static/app.js").status_code == 200
+    if api.WEB.is_dir():  # Next.js UI built (web/out)
+        assert r.status_code == 200 and "<html" in r.text
+        assert client.get("/plan/").status_code == 200
+        assert client.get("/trips").status_code == 200  # API routes win over the UI mount
+    else:
+        assert r.status_code == 503 and "npm run build" in r.text
 
 
 def test_trip_crud(client):
     assert client.post("/trips").json() == {"id": "t1"}
     [row] = client.get("/trips").json()
     assert row["id"] == "t1" and row["title"] == "Lisbon" and "updated_at" in row
+    # Card fields for the trips grid: destination photo + dates without loading every trip
+    assert {k: row[k] for k in ("destination", "start_date", "end_date", "days")} == {
+        "destination": "", "start_date": None, "end_date": None, "days": 0,
+    }
 
     got = client.get("/trips/t1").json()
     assert got["trip"]["title"] == "Lisbon"
