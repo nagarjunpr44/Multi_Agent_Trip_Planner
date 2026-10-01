@@ -7,6 +7,7 @@ so it is always on: without hours, check_trip can't catch closed venues.
 
 from __future__ import annotations
 
+import asyncio
 import re
 from datetime import time
 
@@ -20,6 +21,8 @@ RUN_URL = (
 )
 RUN_TIMEOUT_S = 150  # Apify stops waiting at this point; the run itself is billed until then
 _TTL_HOURS = 24 * 7
+# ponytail: per-process cap sized for a 16 GB / 5-job Apify plan; raise it on bigger plans.
+_slots = asyncio.Semaphore(4)
 _BASE_INPUT = {
     "language": "en",
     "scrapePlaceDetailPage": True,  # needed for openingHours
@@ -39,16 +42,25 @@ async def search_places(query: str, near: str, max_results: int = 8) -> list[Pla
 
 
 async def search_many(queries: list[str], near: str, max_results: int = 6) -> list[Place]:
-    """All queries in one scraper run (Apify runs them in parallel); deduplicated."""
+    """One scraper run per query, run concurrently; deduplicated, in query order.
+
+    A single run with several queries works through them roughly one after another
+    (measured: 60-150s for 4-6 queries), while separate runs really run in parallel.
+    """
+    results = await asyncio.gather(*(_search_one(q, near, max_results) for q in queries))
+    unique = {p.place_id: p for found in results for p in found}
+    return list(unique.values())
+
+
+async def _search_one(query: str, near: str, max_results: int) -> list[Place]:
     body = {
         **_BASE_INPUT,
-        "searchStringsArray": queries,
+        "searchStringsArray": [query],
         "locationQuery": near,
         "maxCrawledPlacesPerSearch": max_results,
     }
     rows = await cached("places.apify.search", body, lambda: _run(body), ttl_hours=_TTL_HOURS)
-    unique = {r["place_id"]: r for r in rows}
-    return [Place.model_validate(r) for r in unique.values()]
+    return [Place.model_validate(r) for r in rows]
 
 
 async def get_place(place_id: str) -> Place:
@@ -61,15 +73,16 @@ async def get_place(place_id: str) -> Place:
 
 async def _run(body: dict) -> list[dict]:
     token = http.require_key(get_settings().apify_api_token, "APIFY_API_TOKEN")
-    items = await http.request(
-        "Apify",
-        "POST",
-        RUN_URL,
-        params={"timeout": RUN_TIMEOUT_S},
-        json=body,
-        headers={"Authorization": f"Bearer {token}"},
-        timeout=RUN_TIMEOUT_S + 30,
-    )
+    async with _slots:
+        items = await http.request(
+            "Apify",
+            "POST",
+            RUN_URL,
+            params={"timeout": RUN_TIMEOUT_S},
+            json=body,
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=RUN_TIMEOUT_S + 30,
+        )
     return [
         _place(item).model_dump(mode="json")
         for item in items

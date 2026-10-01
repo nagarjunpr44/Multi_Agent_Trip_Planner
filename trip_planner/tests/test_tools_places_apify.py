@@ -121,12 +121,16 @@ async def test_errors(monkeypatch):
         await get_place("ChIJnone")
 
 
-async def test_search_many_is_one_run_and_dedupes(monkeypatch):
+async def test_search_many_runs_each_query_concurrently_and_dedupes(monkeypatch):
     other = {**ITEM, "placeId": "ChIJother", "title": "Other"}
-    calls = mock_http(monkeypatch, lambda r: httpx.Response(201, json=[ITEM, other, ITEM]))
+
+    def handler(r):
+        q = json.loads(r.content)["searchStringsArray"]
+        return httpx.Response(201, json=[ITEM] if q == ["chinese food"] else [other, ITEM])
+
+    calls = mock_http(monkeypatch, handler)
     found = await search_many(["chinese food", "dumplings"], "Staten Island", 4)
     assert [p.place_id for p in found] == ["ChIJkim", "ChIJother"]
-    assert len(calls) == 1
-    body = json.loads(calls[0].content)
-    assert body["searchStringsArray"] == ["chinese food", "dumplings"]
-    assert body["maxCrawledPlacesPerSearch"] == 4
+    bodies = sorted(json.loads(c.content)["searchStringsArray"][0] for c in calls)
+    assert bodies == ["chinese food", "dumplings"]  # one run per query
+    assert all(json.loads(c.content)["maxCrawledPlacesPerSearch"] == 4 for c in calls)

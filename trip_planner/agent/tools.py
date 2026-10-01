@@ -159,9 +159,9 @@ class SearchHotelsArgs(BaseModel):
 
 class SearchPlacesArgs(BaseModel):
     """Find real places (sights, restaurants, museums…) with rating, hours and location. \
-Only places found here or by research_city can be added as stops. Each call takes a while, \
-so pass every query for an area in one call; prefer broad queries ('historic sights', \
-'seafood restaurant') over one search per landmark."""
+Only places found here or by research_city can be added as stops. Each search takes a while \
+but queries in one call run in parallel, so pass every query for an area in one call; prefer \
+broad queries ('historic sights', 'seafood restaurant') over one search per landmark."""
 
     queries: list[str] = Field(
         min_length=1, max_length=8,
@@ -327,7 +327,7 @@ async def search_places(state: dict, queries: list[str], near: str | None = None
     near = near or (trip.destinations[0] if trip.destinations else None)
     if not near:
         raise ToolError("Say where to search (near) or set the destination first")
-    found = await places.search_many(queries, near, max_results=5)
+    found = await places.search_many(queries, near, max_results=4)
     return [_place_brief(p) for p in found], _merge_places(state, found)
 
 
