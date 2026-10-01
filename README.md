@@ -19,7 +19,7 @@ You ⇄ Chat API (SSE streaming)
    travel times (Google Routes)         check_trip  ← deterministic validator
    weather (OpenWeatherMap)             request_approval  ← pauses for the user
    web search (Tavily)
-   research_city  ← Haiku sub-agent: reads many results, returns a short brief
+   research_city  ← cheap sub-agent: reads many results, returns a short brief
 ```
 
 - **One agent makes all the decisions.** Flights, hotel and itinerary depend on each
@@ -38,20 +38,24 @@ You ⇄ Chat API (SSE streaming)
 
 ### Model routing
 
-| Task | Model | Why |
-|---|---|---|
-| Planner (decisions, tool loop) | `claude-sonnet-5-5`, effort `medium` | judgment + reliable tool use at a reasonable cost |
-| Research sub-agent | `claude-haiku-4-5` | reads lots of search results cheaply and fast |
-| Eval judge | `claude-opus-5-5`, effort `high` | low volume, accuracy matters |
+`LLM_PROVIDER` picks the provider (default `openai`). Each task gets its own model:
 
-All set in `trip_planner/llm.py` and overridable via env (`PLANNER_MODEL`, …). The
-system prompt and tools are prompt-cached.
+| Task | OpenAI (default) | Anthropic | Why |
+|---|---|---|---|
+| Planner (decisions, tool loop) | `gpt-5.5`, effort medium | `claude-sonnet-5-5`, medium | judgment + reliable tool use |
+| Research sub-agent | `gpt-5.4-mini`, effort low | `claude-haiku-4-5` | reads lots of search results cheaply |
+| Eval judge | `gpt-5.5`, effort high | `claude-opus-5-5`, high | low volume, accuracy matters |
+
+All set in `trip_planner/llm.py` and overridable via env (`PLANNER_MODEL`,
+`PLANNER_EFFORT`, …). OpenAI runs through the Responses API, because function tools
+combined with reasoning effort aren't allowed on Chat Completions. Long prompt
+prefixes are cached on both providers.
 
 ## Quick start
 
 ```bash
 uv sync
-cp .env.example .env      # add ANTHROPIC_API_KEY, SERPAPI_API_KEY, GOOGLE_MAPS_API_KEY, TAVILY_API_KEY, OPENWEATHERMAP_API_KEY
+cp .env.example .env      # add OPENAI_API_KEY, SERPAPI_API_KEY, GOOGLE_MAPS_API_KEY, TAVILY_API_KEY, OPENWEATHERMAP_API_KEY
 uv run python -m trip_planner.api          # web UI + API on http://127.0.0.1:8000
 uv run python -m trip_planner.agent.cli    # or chat in the terminal
 ```
@@ -83,8 +87,9 @@ uv run python -m trip_planner.evals.run --case lisbon-relaxed --no-judge
 
 The eval set (`trip_planner/evals/cases.json`) contains 20 realistic requests. Each
 run is scored with hard checks (day count, zero `check_trip` errors, budget,
-flight/hotel chosen, constraints kept) and an Opus rubric (fit, geography, specificity,
-pacing, honesty). Latency and cost are reported per case. Re-run it after any prompt,
+flight/hotel chosen, constraints kept) and a rubric graded by the judge model (fit, geography, specificity,
+pacing, honesty). Latency, tokens and cost are reported per case; cost shows `n/a`
+until you add your models' prices to `PRICES` in `evals/run.py`. Re-run it after any prompt,
 tool or model change.
 
 ## Layout

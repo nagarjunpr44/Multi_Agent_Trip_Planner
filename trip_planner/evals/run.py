@@ -28,6 +28,7 @@ RESULTS_DIR = HERE / "results"
 MAX_EXTRA_TURNS = 2
 
 # USD per 1M tokens (input, output). Cache reads are billed at 10% of input.
+# Add your models' current prices here; runs using an unpriced model report cost as n/a.
 PRICES = {
     "claude-sonnet-5-5": (2.0, 10.0),
     "claude-haiku-4-5": (1.0, 5.0),
@@ -67,12 +68,13 @@ def hard_checks(case: dict, trip_dict: dict) -> dict[str, bool]:
     return checks
 
 
-def cost_usd(usage: dict) -> float:
+def cost_usd(usage: dict) -> float | None:
+    """Estimated cost, or None when any model used has no entry in PRICES."""
     total = 0.0
     for model, u in usage.items():
         price = next((p for name, p in PRICES.items() if model.startswith(name)), None)
         if price is None:
-            continue
+            return None
         p_in, p_out = price
         cached = (u.get("input_token_details") or {}).get("cache_read") or 0
         total += (u["input_tokens"] - cached) * p_in + cached * p_in * 0.1
@@ -120,14 +122,17 @@ async def run_case(case: dict, use_judge: bool) -> dict:
 
 
 def print_summary(records: list[dict]) -> None:
-    print(f"\n{'case':34} {'checks':>7} {'judge':>5} {'tool_err':>8} {'lat_s':>7} {'cost_$':>7}")
+    print(
+        f"\n{'case':34} {'checks':>7} {'judge':>5} {'tool_err':>8} {'lat_s':>7} "
+        f"{'tokens':>9} {'cost_$':>7}"
+    )
     for r in records:
         checks = r.get("checks", {})
         passed = f"{sum(checks.values())}/{len(checks)}" if checks else "-"
         overall = r.get("judge", {}).get("overall", "-")
         print(
             f"{r['id'][:34]:34} {passed:>7} {overall:>5} {len(r['tool_errors']):>8} "
-            f"{r['latency_s']:>7.1f} {r['cost_usd']:>7.3f}"
+            f"{r['latency_s']:>7.1f} {_tokens(r):>9,} {_money(r['cost_usd']):>7}"
             + (f"  ERROR {r['error'][:60]}" if "error" in r else "")
         )
     n = len(records) or 1
@@ -139,8 +144,22 @@ def print_summary(records: list[dict]) -> None:
         f"judge mean {sum(judged) / len(judged) if judged else 0:.2f} ({len(judged)} judged) | "
         f"tool errors {sum(len(r['tool_errors']) for r in records)} | "
         f"latency mean {sum(r['latency_s'] for r in records) / n:.1f}s | "
-        f"cost total ${sum(r['cost_usd'] for r in records):.3f}"
+        f"tokens {sum(_tokens(r) for r in records):,} | "
+        f"cost total {_money(_total_cost(records))}"
     )
+
+
+def _tokens(r: dict) -> int:
+    return sum(u.get("total_tokens", 0) for u in (r.get("usage") or {}).values())
+
+
+def _total_cost(records: list[dict]) -> float | None:
+    costs = [r["cost_usd"] for r in records]
+    return None if None in costs else sum(costs)
+
+
+def _money(v: float | None) -> str:
+    return "n/a" if v is None else f"${v:.3f}"
 
 
 async def run(cases: list[dict], use_judge: bool = True, concurrency: int = 2) -> Path:

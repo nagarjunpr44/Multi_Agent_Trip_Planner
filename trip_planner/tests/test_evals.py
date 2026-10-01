@@ -110,10 +110,12 @@ def test_cost_usd():
             "input_token_details": {"cache_read": 500_000},
         },
         "claude-opus-5-5": {"input_tokens": 1_000_000, "output_tokens": 0},
-        "unknown-model": {"input_tokens": 9_999_999, "output_tokens": 9_999_999},
     }
     # sonnet: 0.5M*2 + 0.5M*0.2 + 0.1M*10 = 2.1 ; opus: 4
     assert run.cost_usd(usage) == pytest.approx(6.1)
+    # One unpriced model makes the estimate unknown rather than silently low.
+    usage["gpt-unpriced"] = {"input_tokens": 10, "output_tokens": 10}
+    assert run.cost_usd(usage) is None
 
 
 def test_compact_trip_drops_noise():

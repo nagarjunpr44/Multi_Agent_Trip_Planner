@@ -17,7 +17,7 @@ from typing import Any
 from urllib.parse import quote_plus
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
+from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.config import get_stream_writer
 from langgraph.graph import END, START, StateGraph
@@ -28,14 +28,12 @@ from trip_planner.agent import tools as agent_tools
 from trip_planner.agent.prompts import SYSTEM_PROMPT
 from trip_planner.agent.state import PlannerState
 from trip_planner.config import get_settings
-from trip_planner.llm import get_llm
+from trip_planner.llm import get_llm, system_message
 from trip_planner.trip.models import Trip
 
 SQLITE_CHECKPOINTS = "data/checkpoints.db"
 
-SYSTEM = SystemMessage(
-    content=[{"type": "text", "text": SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}]
-)
+SYSTEM = system_message(SYSTEM_PROMPT)
 
 
 def _last_ai(state: dict) -> AIMessage:

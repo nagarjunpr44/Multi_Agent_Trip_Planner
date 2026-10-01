@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Literal
 
 from dotenv import load_dotenv
 from pydantic import Field
@@ -15,16 +16,19 @@ load_dotenv()
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True)
 
-    # ── Model routing: one model per kind of task ──────────────────────────
+    # ── Model routing: one model per kind of task (defaults per provider in llm.py) ──
+    llm_provider: Literal["openai", "anthropic"] = Field("openai", alias="LLM_PROVIDER")
     # planner: owns every decision and edits the trip (needs judgment + tool use)
-    planner_model: str = Field("claude-sonnet-5-5", alias="PLANNER_MODEL")
-    planner_effort: str = Field("medium", alias="PLANNER_EFFORT")
+    planner_model: str = Field("", alias="PLANNER_MODEL")
+    planner_effort: str = Field("", alias="PLANNER_EFFORT")
     # research: reads lots of search results and writes a short brief (cheap, fast)
-    research_model: str = Field("claude-haiku-4-5", alias="RESEARCH_MODEL")
+    research_model: str = Field("", alias="RESEARCH_MODEL")
+    research_effort: str = Field("", alias="RESEARCH_EFFORT")
     # judge: grades eval runs (low volume, accuracy matters)
-    judge_model: str = Field("claude-opus-5-5", alias="JUDGE_MODEL")
-    judge_effort: str = Field("high", alias="JUDGE_EFFORT")
+    judge_model: str = Field("", alias="JUDGE_MODEL")
+    judge_effort: str = Field("", alias="JUDGE_EFFORT")
 
+    openai_api_key: str = Field("", alias="OPENAI_API_KEY")
     anthropic_api_key: str = Field("", alias="ANTHROPIC_API_KEY")
 
     # ── Data APIs ───────────────────────────────────────────────────────────
