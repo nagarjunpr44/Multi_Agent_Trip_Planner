@@ -87,6 +87,14 @@ def test_hard_checks_fail(fake_checks):
     assert not any(checks.values()), checks
 
 
+def test_stops_per_day_exempts_arrival_day(fake_checks):
+    trip = make_trip()
+    trip["days"][0]["stops"] = []  # flight lands 2027-03-12, the first day
+    assert run.hard_checks(CASE, trip)["stops_per_day"]
+    trip["days"][1]["stops"] = trip["days"][1]["stops"][:1]
+    assert not run.hard_checks(CASE, trip)["stops_per_day"]
+
+
 def test_hard_checks_skip_optional(fake_checks):
     case = {**CASE, "expect": {**CASE["expect"], "budget_usd": None, "origin": None}}
     fake_checks["issues"] = [Issue(code="w", severity="warning", message="w")]

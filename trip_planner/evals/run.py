@@ -47,10 +47,13 @@ def hard_checks(case: dict, trip_dict: dict) -> dict[str, bool]:
     trip = Trip.model_validate(trip_dict)
     exp = case["expect"]
     have = " | ".join(trip.destinations).lower()
+    # The arrival day may legitimately be light (late flight, check-in only).
+    arrival = trip.flight.arrive_at.date() if trip.flight else None
+    full_days = [d for d in trip.days if d.date != arrival]
     checks = {
         "days": len(trip.days) == exp["days"],
         "destinations": all(d.lower() in have for d in exp["destinations"]),
-        "stops_per_day": bool(trip.days) and all(len(d.stops) >= 2 for d in trip.days),
+        "stops_per_day": bool(full_days) and all(len(d.stops) >= 2 for d in full_days),
         "no_errors": not any(i.severity == "error" for i in check_trip(trip)),
         "hotel": trip.hotel is not None,
     }
