@@ -10,6 +10,11 @@ from trip_planner.tools import ToolError
 from trip_planner.tools.places import get_place, search_places
 
 
+@pytest.fixture(autouse=True)
+def google_provider(monkeypatch):
+    set_key(monkeypatch, "places_provider", "google")
+
+
 def _period(od, oh, cd, ch, om=0, cm=0):
     return {
         "open": {"day": od, "hour": oh, "minute": om},

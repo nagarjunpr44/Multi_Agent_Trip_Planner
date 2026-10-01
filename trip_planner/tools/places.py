@@ -1,4 +1,6 @@
-"""Place search + details via Google Places API (New)."""
+"""Place search + details: Apify's Google Maps scraper (default) or Google Places API (New).
+
+PLACES_PROVIDER picks the backend; both return the same Place model."""
 
 from __future__ import annotations
 
@@ -6,7 +8,7 @@ from datetime import time
 from urllib.parse import quote
 
 from trip_planner.config import get_settings
-from trip_planner.tools import http
+from trip_planner.tools import http, places_apify
 from trip_planner.tools.cache import cached
 from trip_planner.trip.models import OpenPeriod, Place
 
@@ -40,6 +42,8 @@ def _headers(field_mask: str) -> dict:
 
 async def search_places(query: str, near: str, max_results: int = 8) -> list[Place]:
     """Text search, e.g. ("ramen", "Shinjuku, Tokyo"). Includes hours when returned."""
+    if get_settings().places_provider == "apify":
+        return await places_apify.search_places(query, near, max_results)
     body = {"textQuery": f"{query} in {near}", "pageSize": min(max_results, 20)}
 
     async def fetch() -> list[dict]:
@@ -58,6 +62,8 @@ async def search_places(query: str, near: str, max_results: int = 8) -> list[Pla
 
 async def get_place(place_id: str) -> Place:
     """Full details for one place, including opening hours."""
+    if get_settings().places_provider == "apify":
+        return await places_apify.get_place(place_id)
 
     async def fetch() -> dict:
         data = await http.request(
