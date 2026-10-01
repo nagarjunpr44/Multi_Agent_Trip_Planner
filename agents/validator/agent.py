@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import time
 
-from langchain_core.messages import HumanMessage, SystemMessage
-from langgraph.types import Command
-
 from agents.llm_factory import get_llm_for_agent
+from agents.orchestrator.agent import _activity_detail_score
 from agents.state import TravelState
 from prompts.loader import get_prompt
 from schemas.agent_output import ValidationResult
@@ -13,12 +11,7 @@ from schemas.agent_output import ValidationResult
 
 async def validator_node(state: TravelState) -> dict:
     """
-    Validator Agent: quality-critic that scores the itinerary across four dimensions.
-
-    On failure, populates `revision_feedback` with a structured summary of issues
-    and suggestions so the itinerary agent can produce a targeted improvement.
-    If score < 0.75 and revision_count < MAX_REVISIONS, the graph routes back
-    to itinerary_node (not budget_node — budget data is unchanged).
+    Validator Agent — scores plan quality. Routing is delegated to orchestrator_node.
     """
     t0 = time.monotonic()
     agent_name = "validator"
@@ -35,9 +28,18 @@ async def validator_node(state: TravelState) -> dict:
     experience_results = state.get("experience_results") or []
     revision_count = state.get("revision_count", 0)
 
+    detail_score = _activity_detail_score(itinerary)
     validation_prompt = _build_validation_prompt(
-        constraints, itinerary, budget_analysis, flight_results, hotel_results, experience_results
+        constraints,
+        itinerary,
+        budget_analysis,
+        flight_results,
+        hotel_results,
+        experience_results,
+        detail_score,
     )
+
+    from langchain_core.messages import HumanMessage, SystemMessage
 
     messages = [
         SystemMessage(content=system_prompt),
@@ -45,6 +47,15 @@ async def validator_node(state: TravelState) -> dict:
     ]
 
     result: ValidationResult = await structured_llm.ainvoke(messages)
+    result.detail_score = detail_score
+
+    # Fail if activities are vague even when other scores are OK
+    if detail_score < 0.6:
+        result.passed = False
+        result.quality_score = min(result.quality_score, detail_score)
+        result.issues = list(result.issues) + [
+            "Activities lack detail (descriptions, times, addresses, or links)."
+        ]
 
     duration_ms = round((time.monotonic() - t0) * 1000)
     timings = dict(state.get("agent_timings", {}))
@@ -52,7 +63,6 @@ async def validator_node(state: TravelState) -> dict:
 
     new_revision_count = revision_count if result.passed else revision_count + 1
 
-    # Build actionable feedback for the itinerary agent's next revision pass
     revision_feedback: str | None = None
     if not result.passed:
         issues_str = (
@@ -73,28 +83,16 @@ async def validator_node(state: TravelState) -> dict:
             f"  Budget alignment: {result.budget_alignment_score:.2f}\n"
             f"  Coverage:         {result.coverage_score:.2f}\n"
             f"  Quality:          {result.quality_score:.2f}\n"
+            f"  Detail:           {detail_score:.2f}\n"
             f"  Overall:          {result.score:.2f} (need ≥ 0.75 to pass)"
         )
 
-    update_state = {
+    return {
         "validation_result": result.model_dump(),
         "revision_count": new_revision_count,
         "revision_feedback": revision_feedback,
         "agent_timings": timings,
     }
-
-    # LangGraph 1.1: Direct type-safe routing via Command
-    MAX_REVISIONS = 2
-    goto_node = (
-        "itinerary_node"
-        if not result.passed and revision_count < MAX_REVISIONS
-        else "booking_node"
-    )
-
-    return Command(
-        goto=goto_node,
-        update=update_state,
-    )
 
 
 def _build_validation_prompt(
@@ -104,57 +102,44 @@ def _build_validation_prompt(
     flight_results: dict,
     hotel_results: dict,
     experience_results: list[dict],
+    detail_score: float,
 ) -> str:
-    destination = constraints.get("destination", "Unknown")
+    destination = constraints.get("destination") or (
+        (constraints.get("destinations") or ["Unknown"])[0]
+    )
     num_travelers = constraints.get("num_travelers", 1)
     budget_usd = constraints.get("budget_usd")
     budget_tier = constraints.get("budget_tier", "mid")
-    preferences = constraints.get("preferences", [])
-    avoid = constraints.get("avoid", [])
+    preferences = constraints.get("activity_preferences") or constraints.get("preferences", [])
 
     days = itinerary.get("days", [])
     num_days = len(days)
-    highlights = itinerary.get("highlights", [])
-    total_est = itinerary.get("total_activities_cost_usd", "unknown")
+    sample_activities = []
+    for day in days[:2]:
+        for slot in ("morning", "afternoon", "evening"):
+            for act in (day.get(slot) or [])[:2]:
+                sample_activities.append(
+                    f"{act.get('name')}: desc={len(act.get('description') or '')} chars, "
+                    f"loc={act.get('location', 'missing')}, "
+                    f"start={act.get('start_time', 'missing')}"
+                )
 
-    # BudgetTier field is total_usd (not total_cost_usd)
     mid_budget = (budget_analysis.get("mid") or {}).get("total_usd", "unknown")
-
     num_flights = len(flight_results.get("options") or [])
     num_hotels = len(hotel_results.get("options") or [])
     num_experiences = len(experience_results)
-
-    pref_str = ", ".join(preferences) if preferences else "none specified"
-    avoid_str = ", ".join(avoid) if avoid else "none"
-    hl_str = ", ".join(highlights[:5]) if highlights else "none"
-    daily_themes = [
-        (d.get("theme") or f"Day {d.get('day_number', i + 1)}")
-        for i, d in enumerate(days[:4])
-    ]
 
     return (
         f"Validate this travel plan:\n\n"
         f"DESTINATION: {destination}\n"
         f"TRAVELERS: {num_travelers} | DURATION: {num_days} days\n"
-        f"USER BUDGET: {'$' + str(budget_usd) if budget_usd else 'unspecified'} "
-        f"({budget_tier} tier)\n"
-        f"PREFERENCES: {pref_str}\n"
-        f"AVOID: {avoid_str}\n\n"
-        f"ITINERARY OVERVIEW:\n"
-        f"  Highlights: {hl_str}\n"
-        f"  Day themes: {', '.join(daily_themes)}\n"
-        f"  Total days planned: {num_days}\n"
-        f"  Estimated activities cost: ${total_est}\n"
-        f"  Estimated mid-tier total: ${mid_budget}\n\n"
-        f"DATA COVERAGE:\n"
-        f"  Flights found: {num_flights}\n"
-        f"  Hotels found: {num_hotels}\n"
-        f"  Experiences found: {num_experiences}\n\n"
-        f"Score the plan on:\n"
-        f"1. Completeness (all days filled, all data present)\n"
-        f"2. Budget adherence (within user budget or justified)\n"
-        f"3. Preference match (aligns with user preferences, avoids stated avoidances)\n"
-        f"4. Feasibility (travel times realistic, activity count per day reasonable)\n\n"
-        f"Return a ValidationResult with score (0.0–1.0), passed (true if score >= 0.75), "
-        f"issues list, and suggestions list. Be strict — a score of 0.75 means 'barely acceptable'."
+        f"USER BUDGET: {'$' + str(budget_usd) if budget_usd else 'unspecified'} ({budget_tier})\n"
+        f"PREFERENCES: {', '.join(preferences) if preferences else 'none'}\n\n"
+        f"ACTIVITY DETAIL SCORE (heuristic): {detail_score:.2f}\n"
+        f"SAMPLE ACTIVITIES:\n" + "\n".join(sample_activities[:6]) + "\n\n"
+        f"DATA: flights={num_flights}, hotels={num_hotels}, experiences={num_experiences}\n"
+        f"Mid-tier budget: ${mid_budget}\n\n"
+        "Score strictly on feasibility, budget, coverage, and QUALITY/DETAIL.\n"
+        "FAIL if activities are name+location only without descriptions, times, or links.\n"
+        "PASS threshold = 0.75 overall AND detail_score >= 0.6."
     )

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 
+from agents.constraints import normalize_constraints
 from agents.state import TravelState
 from memory.context_manager import ContextManager
 
@@ -17,7 +18,7 @@ async def memory_load_node(state: TravelState) -> dict:
     """
     session_id = state.get("session_id", "")
     user_query = state.get("user_query", "")
-    constraints = state.get("constraints", {})
+    constraints = normalize_constraints(state.get("constraints", {}))
 
     query_text = (
         f"{user_query} "
@@ -42,7 +43,7 @@ async def memory_load_node(state: TravelState) -> dict:
         session_id,
         list(user_context.keys()),
     )
-    return {"user_context": user_context}
+    return {"user_context": user_context, "constraints": constraints}
 
 
 async def memory_save_node(state: TravelState) -> dict:
@@ -84,8 +85,9 @@ def _build_trip_summary(
     booking_result: dict,
     validation_result: dict,
 ) -> str:
-    destination = constraints.get("destination", "unknown")
-    preferences = constraints.get("preferences", [])
+    destinations = constraints.get("destinations") or []
+    destination = destinations[0] if destinations else constraints.get("destination", "unknown")
+    preferences = constraints.get("activity_preferences") or constraints.get("preferences", [])
     budget_usd = constraints.get("budget_usd")
     num_travelers = constraints.get("num_travelers", 1)
     num_days = len(itinerary.get("days", []))

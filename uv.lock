@@ -19,6 +19,7 @@ dependencies = [
     { name = "babel" },
     { name = "chromadb" },
     { name = "fastapi" },
+    { name = "firecrawl-py" },
     { name = "folium" },
     { name = "geopy" },
     { name = "google-search-results" },
@@ -57,7 +58,6 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
-    { name = "faker" },
     { name = "httpx" },
     { name = "mypy" },
     { name = "pytest" },
@@ -74,8 +74,8 @@ requires-dist = [
     { name = "asyncpg", specifier = ">=0.29" },
     { name = "babel", specifier = ">=2.16" },
     { name = "chromadb", specifier = ">=0.6" },
-    { name = "faker", marker = "extra == 'dev'", specifier = ">=33.0" },
     { name = "fastapi", specifier = ">=0.134" },
+    { name = "firecrawl-py", specifier = ">=4.0" },
     { name = "folium", specifier = ">=0.18" },
     { name = "geopy", specifier = ">=2.4" },
     { name = "google-search-results", specifier = ">=2.4" },
@@ -936,18 +936,6 @@ wheels = [
 ]
 
 [[package]]
-name = "faker"
-version = "40.5.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "tzdata", marker = "sys_platform == 'win32'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/03/2a/96fff3edcb10f6505143448a4b91535f77b74865cec45be52690ee280443/faker-40.5.1.tar.gz", hash = "sha256:70222361cd82aa10cb86066d1a4e8f47f2bcdc919615c412045a69c4e6da0cd3", size = 1952684, upload-time = "2026-02-23T21:34:38.362Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/4d/a9/1eed4db92d0aec2f9bfdf1faae0ab0418b5e121dda5701f118a7a4f0cd6a/faker-40.5.1-py3-none-any.whl", hash = "sha256:c69640c1e13bad49b4bcebcbf1b52f9f1a872b6ea186c248ada34d798f1661bf", size = 1987053, upload-time = "2026-02-23T21:34:36.418Z" },
-]
-
-[[package]]
 name = "fastapi"
 version = "0.135.1"
 source = { registry = "https://pypi.org/simple" }
@@ -970,6 +958,24 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/77/18/a1fd2231c679dcb9726204645721b12498aeac28e1ad0601038f94b42556/filelock-3.25.0.tar.gz", hash = "sha256:8f00faf3abf9dc730a1ffe9c354ae5c04e079ab7d3a683b7c32da5dd05f26af3", size = 40158, upload-time = "2026-03-01T15:08:45.916Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f9/0b/de6f54d4a8bedfe8645c41497f3c18d749f0bd3218170c667bf4b81d0cdd/filelock-3.25.0-py3-none-any.whl", hash = "sha256:5ccf8069f7948f494968fc0713c10e5c182a9c9d9eef3a636307a20c2490f047", size = 26427, upload-time = "2026-03-01T15:08:44.593Z" },
+]
+
+[[package]]
+name = "firecrawl-py"
+version = "4.27.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiohttp" },
+    { name = "httpx" },
+    { name = "nest-asyncio" },
+    { name = "pydantic" },
+    { name = "python-dotenv" },
+    { name = "requests" },
+    { name = "websockets" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b1/ab/ba7b2fa1ad41ac4b6eb281985eebf1ee2f6e4e7a5688994cc78a13ece544/firecrawl_py-4.27.1.tar.gz", hash = "sha256:491012b64cec2bb7cae890d8beea71863624bbe50297ca06d454ade32820ccca", size = 187034, upload-time = "2026-05-17T17:13:22.163Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/29/52/0d8189fb17f910aa1393fdb47e2a139f19fd410154d08fd00ce70ccb0128/firecrawl_py-4.27.1-py3-none-any.whl", hash = "sha256:dc6112f0ead68dd4dddf05e2511b0e01cee217a1ee3628c1bee80a6f4240bf21", size = 233663, upload-time = "2026-05-17T17:13:19.825Z" },
 ]
 
 [[package]]
@@ -2280,6 +2286,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/75/59/81d0f4cad21484083466f278e6b392addd9f4205b48d45b5c8771670ebf8/narwhals-2.17.0.tar.gz", hash = "sha256:ebd5bc95bcfa2f8e89a8ac09e2765a63055162837208e67b42d6eeb6651d5e67", size = 620306, upload-time = "2026-02-23T09:44:34.142Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/4b/27/20770bd6bf8fbe1e16f848ba21da9df061f38d2e6483952c29d2bb5d1d8b/narwhals-2.17.0-py3-none-any.whl", hash = "sha256:2ac5307b7c2b275a7d66eeda906b8605e3d7a760951e188dcfff86e8ebe083dd", size = 444897, upload-time = "2026-02-23T09:44:32.006Z" },
+]
+
+[[package]]
+name = "nest-asyncio"
+version = "1.6.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/83/f8/51569ac65d696c8ecbee95938f89d4abf00f47d58d48f6fbabfe8f0baefe/nest_asyncio-1.6.0.tar.gz", hash = "sha256:6f172d5449aca15afd6c646851f4e31e02c598d553a667e38cafa997cfec55fe", size = 7418, upload-time = "2024-01-21T14:25:19.227Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a0/c4/c2971a3ba4c6103a3d10c4b0f24f461ddc027f0f09763220cf35ca1401b3/nest_asyncio-1.6.0-py3-none-any.whl", hash = "sha256:87af6efd6b5e897c81050477ef65c62e2b2f35d51703cae01aff2905b1852e1c", size = 5195, upload-time = "2024-01-21T14:25:17.223Z" },
 ]
 
 [[package]]

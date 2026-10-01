@@ -12,6 +12,20 @@ def _merge_dicts(a: dict, b: dict) -> dict:
 
 
 
+def _merge_experiences(existing: list, new: list) -> list:
+    """Merge experience lists by name (used when coverage re-dispatches gather agents)."""
+    by_name: dict[str, dict] = {}
+    for item in existing or []:
+        name = (item.get("name") or "").strip().lower()
+        if name:
+            by_name[name] = item
+    for item in new or []:
+        name = (item.get("name") or "").strip().lower()
+        if name and name not in by_name:
+            by_name[name] = item
+    return list(by_name.values())
+
+
 class TravelState(MessagesState):
     # ── Input ───────────────────────────────────────────────────────────────
     session_id: str
@@ -28,7 +42,7 @@ class TravelState(MessagesState):
     destination_info: dict | None       # serialized DestinationInfo
     flight_results: dict | None         # serialized FlightSearchResult
     hotel_results: dict | None          # serialized HotelSearchResult
-    experience_results: list[dict]         # list of serialized Experience
+    experience_results: Annotated[list[dict], _merge_experiences]  # list of serialized Experience
 
     # ── Sequential agent outputs ─────────────────────────────────────────────
     budget_analysis: dict | None        # serialized BudgetAnalysis
@@ -48,6 +62,11 @@ class TravelState(MessagesState):
 
     # ── Control flow ─────────────────────────────────────────────────────────
     revision_count: int
+    gather_cycle_count: int
+    enrich_cycle_count: int
+    replenish_targets: list[str]
+    coverage_notes: str | None
+    orchestrator_decision: dict | None
     status: str   # queued | running | paused_hitl | complete | failed
     errors: Annotated[list[dict], operator.add]
 

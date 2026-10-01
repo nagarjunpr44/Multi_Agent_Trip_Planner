@@ -64,7 +64,7 @@ async def _search_serpapi_hotels(params: HotelSearchParams) -> HotelSearchResult
             data = response.json()
         except httpx.HTTPStatusError:
             return HotelSearchResult(
-                params=params, options=[], source="serpapi_error", is_mock=False
+                params=params, options=[], source="serpapi_error"
             )
 
     raw_properties = data.get("properties", [])
@@ -125,7 +125,6 @@ async def _search_serpapi_hotels(params: HotelSearchParams) -> HotelSearchResult
         options=options,
         cheapest_per_night_usd=options[0].price_per_night_usd if options else None,
         source="serpapi",
-        is_mock=False,
     )
 
 

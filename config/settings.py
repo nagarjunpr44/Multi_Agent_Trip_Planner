@@ -80,7 +80,9 @@ class AppSettings(BaseSettings):
     mcp_enabled: bool = Field(default=False, alias="MCP_ENABLED")
     tool_max_retries: int = Field(default=3, alias="TOOL_MAX_RETRIES")
     tool_timeout_seconds: int = Field(default=30, alias="TOOL_TIMEOUT_SECONDS")
-    max_revision_cycles: int = Field(default=2, alias="MAX_REVISION_CYCLES")
+    max_revision_cycles: int = Field(default=3, alias="MAX_REVISION_CYCLES")
+    max_gather_cycles: int = Field(default=3, alias="MAX_GATHER_CYCLES")
+    max_enrich_cycles: int = Field(default=2, alias="MAX_ENRICH_CYCLES")
     validator_pass_threshold: float = Field(
         default=0.75, alias="VALIDATOR_PASS_THRESHOLD"
     )

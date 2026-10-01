@@ -5,15 +5,23 @@ from pydantic import BaseModel, Field, model_validator
 
 class Activity(BaseModel):
     name: str
-    description: str
-    location: str
-    duration_minutes: int
+    description: str = Field(
+        default="",
+        description="At least 2 sentences: what to do, why it matters, practical tips",
+    )
+    location: str = ""
+    duration_minutes: int = Field(default=90, ge=15, le=480)
+    start_time: str | None = Field(None, description="HH:MM 24-hour local time")
     cost_usd: float = 0.0
     category: str = "general"  # sightseeing | food | adventure | culture | transport
     booking_required: bool = False
     booking_url: str | None = None
+    maps_url: str | None = None
     latitude: float | None = None
     longitude: float | None = None
+    transport_from_previous: str | None = Field(
+        None, description="How to get here from previous stop, with minutes"
+    )
 
 
 class DayPlan(BaseModel):

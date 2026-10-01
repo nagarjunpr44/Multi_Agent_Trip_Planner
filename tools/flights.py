@@ -107,7 +107,7 @@ async def _search_serpapi_flights(params: FlightSearchParams) -> FlightSearchRes
             data = response.json()
         except httpx.HTTPStatusError:
             return FlightSearchResult(
-                params=params, options=[], source="serpapi_error", is_mock=False
+                params=params, options=[], source="serpapi_error"
             )
 
     options = []
@@ -185,7 +185,6 @@ async def _search_serpapi_flights(params: FlightSearchParams) -> FlightSearchRes
         cheapest_usd=options[0].price_usd if options else None,
         fastest_minutes=min(o.total_duration_minutes for o in options) if options else None,
         source="serpapi",
-        is_mock=False,
     )
 
 

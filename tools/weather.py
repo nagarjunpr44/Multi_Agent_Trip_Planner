@@ -74,7 +74,6 @@ async def _fetch_owm_weather(city: str, days: int) -> dict:
         "country": current.get("sys", {}).get("country", ""),
         "forecast": forecast,
         "summary": summary,
-        "is_mock": False,
     }
 
 

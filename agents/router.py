@@ -18,12 +18,6 @@ from agents.state import TravelState
 def route_after_supervisor(state: TravelState) -> list[Send]:
     """
     Fan-out from the supervisor to one or more parallel agents using Send().
-
-    The supervisor populates `parallel_targets` with agent names such as:
-      ["research", "flights", "hotels", "experiences"]
-
-    Each Send() delivers the same TravelState snapshot to its target node.
-    If parallel_targets is missing, fall back to all four agents.
     """
     targets: list[str] = state.get("parallel_targets") or [
         "research_node",
@@ -31,11 +25,20 @@ def route_after_supervisor(state: TravelState) -> list[Send]:
         "hotels_node",
         "experiences_node",
     ]
-    # Ensure target names have _node suffix (graph node names)
     node_names = [
         t if t.endswith("_node") else f"{t}_node"
         for t in targets
     ]
     return [Send(node_name, state) for node_name in node_names]
+
+
+def route_after_coverage(state: TravelState) -> str | list[Send]:
+    """
+    Coverage node returns Command; this edge is a fallback when Command is not used.
+    """
+    targets = state.get("replenish_targets") or []
+    if targets and state.get("gather_cycle_count", 0) < 3:
+        return [Send(t if t.endswith("_node") else f"{t}_node", state) for t in targets]
+    return "budget_node"
 
 

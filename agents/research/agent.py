@@ -74,8 +74,9 @@ async def research_node(state: TravelState) -> dict:
                 "Research data:\n" + "\n\n".join(tool_results[-6:])
                 if tool_results
                 else (
-                    "No tool data was retrieved. Produce a best-effort "
-                    f"DestinationInfo for {dest_str}."
+                    f"No tool data was retrieved for {dest_str}. "
+                    "Return DestinationInfo with only fields you can justify; "
+                    "leave unknown lists empty and note gaps in destination_summary."
                 )
             )
         ),

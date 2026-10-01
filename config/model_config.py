@@ -76,6 +76,24 @@ def get_model_registry() -> dict[str, AgentModelConfig]:
             max_tokens=8192,
             provider=_provider(supervisor),
         ),
+        "itinerary_enrich": AgentModelConfig(
+            model_name=supervisor,
+            temperature=0.4,
+            max_tokens=8192,
+            provider=_provider(supervisor),
+        ),
+        "orchestrator": AgentModelConfig(
+            model_name=supervisor,
+            temperature=0.2,
+            max_tokens=1024,
+            provider=_provider(supervisor),
+        ),
+        "coverage": AgentModelConfig(
+            model_name=fast,
+            temperature=0.0,
+            max_tokens=512,
+            provider=_provider(fast),
+        ),
         "validator": AgentModelConfig(
             model_name=validator,
             temperature=0.0,

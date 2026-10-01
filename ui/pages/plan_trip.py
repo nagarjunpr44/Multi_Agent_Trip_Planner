@@ -85,15 +85,28 @@ _GREETING = (
 
 _NODE_LABELS: dict[str, str] = {
     "supervisor": "🗺️ Supervisor",
-    "research_agent": "🔍 Researching destinations",
-    "flight_search_agent": "✈️ Searching flights",
-    "hotel_search_agent": "🏨 Finding hotels",
-    "experience_search_agent": "🎭 Discovering experiences",
-    "budget_optimization_agent": "💰 Optimizing budget",
-    "itinerary_compilation_agent": "📋 Building itinerary",
-    "itinerary_validator_agent": "✅ Validating itinerary",
-    "booking_agent": "🎫 Booking",
-    "booking_node": "🎫 Booking",
+    "research": "🔍 Researching destinations",
+    "research_node": "🔍 Researching destinations",
+    "flights": "✈️ Searching flights",
+    "flights_node": "✈️ Searching flights",
+    "hotels": "🏨 Finding hotels",
+    "hotels_node": "🏨 Finding hotels",
+    "experiences": "🎭 Discovering experiences",
+    "experiences_node": "🎭 Discovering experiences",
+    "coverage": "📊 Checking data coverage",
+    "coverage_node": "📊 Checking data coverage",
+    "budget": "💰 Optimizing budget",
+    "budget_node": "💰 Optimizing budget",
+    "itinerary": "📋 Building itinerary",
+    "itinerary_node": "📋 Building itinerary",
+    "itinerary_enrich": "✨ Enriching itinerary",
+    "itinerary_enrich_node": "✨ Enriching itinerary",
+    "validator": "✅ Validating itinerary",
+    "validator_node": "✅ Validating itinerary",
+    "orchestrator": "🎯 Orchestrator",
+    "orchestrator_node": "🎯 Orchestrator",
+    "booking": "🎫 Booking package",
+    "booking_node": "🎫 Booking package",
 }
 
 
@@ -377,17 +390,33 @@ def _render_results(trip: Any) -> str:
                         continue
                     name = act.get("name") or act.get("activity", "Activity")
                     loc = act.get("location", "")
-                    cost = act.get("estimated_cost") or act.get("cost", "")
-                    tip = act.get("tips") or act.get("tip", "")
+                    start = act.get("start_time", "")
+                    duration = act.get("duration_minutes", "")
+                    desc = (act.get("description") or "").strip()
+                    cost = act.get("cost_usd") or act.get("estimated_cost") or act.get("cost", "")
+                    booking = act.get("booking_url", "")
+                    maps = act.get("maps_url", "")
+                    transport = act.get("transport_from_previous", "")
+
                     line = f"- **{name}**"
+                    if start:
+                        line += f"  🕐 {start}"
+                    if duration:
+                        line += f" ({duration} min)"
                     if loc:
                         line += f"  📍 {loc}"
                     if cost:
                         cost_text = f"${cost}" if isinstance(cost, (int, float)) else str(cost)
                         line += f"  💰 {cost_text}"
                     parts.append(line)
-                    if tip:
-                        parts.append(f"  💡 *{tip}*")
+                    if transport:
+                        parts.append(f"  🚶 {transport}")
+                    if desc:
+                        parts.append(f"  {desc}")
+                    if booking:
+                        parts.append(f"  🔗 [Book]({booking})")
+                    elif maps:
+                        parts.append(f"  🗺️ [Maps]({maps})")
                 parts.append("")
 
     # --- Booking summary ---

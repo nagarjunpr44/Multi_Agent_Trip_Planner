@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 
 import httpx
 from langchain_core.tools import tool
@@ -12,17 +13,21 @@ from schemas.itinerary import Experience
 # Foursquare Places API v3
 FSQ_BASE = "https://api.foursquare.com/v3/places/search"
 
-# Foursquare category IDs mapped to our internal categories
-# Full list: https://docs.foursquare.com/data-products/docs/categories
 _FSQ_CATEGORIES: dict[str, str] = {
-    "restaurant": "13065",   # Restaurant (parent: 13000 Dining & Drinking)
-    "attraction": "16032",   # Tourist Attraction (parent: 16000 Landmarks & Outdoors)
-    "hidden_gem": "16026",   # Scenic Lookout + Landmarks catch-all
-    "activity": "18000",     # Sports & Recreation (18000)
+    "restaurant": "13065",
+    "attraction": "16032",
+    "hidden_gem": "16026",
+    "activity": "18000",
 }
 
-# Fields to request — keeps response lean
 _FSQ_FIELDS = "fsq_id,name,categories,location,rating,price,stats,geocodes,description,tel,website"
+
+_CATEGORY_QUERY: dict[str, str] = {
+    "restaurant": "best restaurants",
+    "attraction": "top attractions",
+    "hidden_gem": "hidden gems off the beaten path",
+    "activity": "things to do activities",
+}
 
 
 @retry(
@@ -64,10 +69,8 @@ async def _fetch_foursquare_places(city: str, category: str, keyword: str) -> li
     for place in data.get("results", [])[:8]:
         loc = place.get("location", {})
         geocodes = place.get("geocodes", {}).get("main", {})
-        # Foursquare rating is 0–10; normalise to 0–5
         raw_rating = place.get("rating")
         rating = round(raw_rating / 2, 1) if raw_rating is not None else None
-        # Foursquare price is 1–4 (matches Google scale directly)
         price = place.get("price")
         cats = place.get("categories", [])
         cuisine = cats[0]["name"] if cats and category == "restaurant" else None
@@ -90,6 +93,43 @@ async def _fetch_foursquare_places(city: str, category: str, keyword: str) -> li
     return results
 
 
+async def _fetch_places_via_tavily(city: str, category: str, keyword: str) -> list[dict]:
+    """Web search fallback when Foursquare is not configured."""
+    s = get_settings()
+    if not s.apis.tavily_api_key:
+        return []
+
+    os.environ["TAVILY_API_KEY"] = s.apis.tavily_api_key
+    from langchain_tavily import TavilySearch
+
+    topic = keyword or _CATEGORY_QUERY.get(category, category)
+    query = f"{city} {topic}"
+    search_tool = TavilySearch(max_results=6, search_depth="basic", topic="general")
+    raw = search_tool.invoke({"query": query})
+
+    items: list[dict] = []
+    if isinstance(raw, dict):
+        items = raw.get("results", [])
+    elif isinstance(raw, list):
+        items = raw
+
+    results: list[dict] = []
+    for item in items[:6]:
+        title = (item.get("title") or "").strip()
+        if not title:
+            continue
+        content = (item.get("content") or item.get("snippet") or "")[:400]
+        exp = Experience(
+            name=title[:120],
+            category=category,
+            address="",
+            city=city,
+            description=content or title,
+        )
+        results.append(exp.model_dump())
+    return results
+
+
 @tool
 async def search_places_tool(
     city: str,
@@ -107,9 +147,23 @@ async def search_places_tool(
         JSON list of Experience objects
     """
     s = get_settings()
-    if not s.apis.foursquare_api_key:
-        return json.dumps({"error": "FOURSQUARE_API_KEY is not configured. Cannot search places."})
-        
-    results = await _fetch_foursquare_places(city, category, keyword or category)
+    search_term = keyword or category
 
-    return json.dumps(results)
+    fsq_key = s.apis.foursquare_api_key
+    if fsq_key and "..." not in fsq_key:
+        results = await _fetch_foursquare_places(city, category, search_term)
+        if results:
+            return json.dumps(results)
+
+    results = await _fetch_places_via_tavily(city, category, search_term)
+    if results:
+        return json.dumps(results)
+
+    if not s.apis.foursquare_api_key and not s.apis.tavily_api_key:
+        return json.dumps({
+            "error": (
+                "Configure FOURSQUARE_API_KEY or TAVILY_API_KEY to search places."
+            )
+        })
+
+    return json.dumps([])

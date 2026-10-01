@@ -80,6 +80,12 @@ class ValidationResult(BaseModel):
     budget_alignment_score: float = Field(default=1.0, ge=0.0, le=1.0)
     coverage_score: float = Field(default=1.0, ge=0.0, le=1.0)
     quality_score: float = Field(default=1.0, ge=0.0, le=1.0)
+    detail_score: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Fraction of activities with rich descriptions and logistics",
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -89,6 +95,16 @@ class ValidationResult(BaseModel):
                 if data.get(f) is None:
                     data[f] = []
         return data
+
+
+class OrchestratorDecision(BaseModel):
+    """Autonomous routing decision after validation."""
+
+    next_action: str = Field(
+        description="One of: enrich | rebuild | gather | book",
+    )
+    reasoning: str = ""
+    confidence: float = Field(default=0.8, ge=0.0, le=1.0)
 
 
 class BookingResult(BaseModel):

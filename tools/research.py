@@ -54,7 +54,6 @@ async def web_research_tool(query: str, search_depth: str = "basic") -> str:
             "results": results,
             "summary": raw.get("answer", ""),
             "follow_up_questions": raw.get("follow_up_questions", []),
-            "is_mock": False,
         })
 
     # Fallback: raw is a plain string (older versions return str)
@@ -62,5 +61,4 @@ async def web_research_tool(query: str, search_depth: str = "basic") -> str:
         "query": query,
         "results": [],
         "summary": str(raw),
-        "is_mock": False,
     })

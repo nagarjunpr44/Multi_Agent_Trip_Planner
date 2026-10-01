@@ -16,8 +16,16 @@ class ToolRegistry:
         "hotels": ["search_hotels_tool"],
         "experiences": ["search_places_tool"],
         "budget": ["convert_currency_tool"],
-        "itinerary": ["get_travel_distance_tool"],
+        "itinerary": ["get_travel_distance_tool", "web_research_tool", "search_places_tool"],
+        "itinerary_enrich": [
+            "web_research_tool",
+            "search_places_tool",
+            "get_travel_distance_tool",
+            "search_tripadvisor_tool",
+        ],
         "validator": [],
+        "orchestrator": [],
+        "coverage": [],
         "booking": ["search_flights_tool", "search_hotels_tool"],
         "memory": [],
     }

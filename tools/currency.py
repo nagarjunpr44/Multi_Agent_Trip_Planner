@@ -2,30 +2,78 @@ from __future__ import annotations
 
 import json
 
+import httpx
 from langchain_core.tools import tool
+from tenacity import retry, stop_after_attempt, wait_exponential
 
-# Fallback/Offline rates
-MOCK_RATES = {
-    "USD": 1.0,
-    "EUR": 0.92,
-    "GBP": 0.79,
-    "JPY": 149.50,
-    "AUD": 1.53,
-    "CAD": 1.36,
-    "CHF": 0.88,
-    "CNY": 7.24,
-    "INR": 83.12,
-    "BRL": 4.97,
-    "MXN": 17.15,
-    "SGD": 1.34,
-    "THB": 35.80,
-    "MYR": 4.72,
-    "IDR": 15750.0,
-    "VND": 24500.0,
-    "HKD": 7.82,
-    "KRW": 1325.0,
-    "TRY": 32.14,
-}
+from config.settings import get_settings
+
+FRANKFURTER_URL = "https://api.frankfurter.dev/v1/latest"
+EXCHANGERATE_API_URL = "https://v6.exchangerate-api.com/v6"
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=10),
+    reraise=True,
+)
+async def _convert_via_frankfurter(amount: float, from_currency: str, to_currency: str) -> dict:
+    """Live ECB-backed rates via Frankfurter (no API key required)."""
+    params = {
+        "amount": amount,
+        "from": from_currency.upper(),
+        "to": to_currency.upper(),
+    }
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        resp = await client.get(FRANKFURTER_URL, params=params)
+        resp.raise_for_status()
+        data = resp.json()
+
+    converted = float(data["rates"][to_currency.upper()])
+    rate = round(converted / amount, 6) if amount else 0.0
+    return {
+        "from_currency": from_currency.upper(),
+        "to_currency": to_currency.upper(),
+        "original_amount": amount,
+        "converted_amount": round(converted, 4),
+        "exchange_rate": rate,
+        "rate_date": data.get("date"),
+        "source": "frankfurter",
+    }
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=10),
+    reraise=True,
+)
+async def _convert_via_exchangerate_api(
+    amount: float, from_currency: str, to_currency: str, api_key: str
+) -> dict:
+    """ExchangeRate-API v6 pair conversion (requires EXCHANGE_RATES_API_KEY)."""
+    base = from_currency.upper()
+    to_code = to_currency.upper()
+    url = f"{EXCHANGERATE_API_URL}/{api_key}/pair/{base}/{to_code}/{amount}"
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        resp = await client.get(url)
+        resp.raise_for_status()
+        data = resp.json()
+
+    if data.get("result") != "success":
+        raise ValueError(data.get("error-type", "exchange rate API error"))
+
+    conversion = data.get("conversion_result", amount)
+    rate = float(data.get("conversion_rate", 0))
+    return {
+        "from_currency": base,
+        "to_currency": to_code,
+        "original_amount": amount,
+        "converted_amount": round(float(conversion), 4),
+        "exchange_rate": rate,
+        "rate_date": data.get("time_last_update_utc"),
+        "source": "exchangerate-api",
+    }
+
 
 @tool
 async def convert_currency_tool(
@@ -33,7 +81,7 @@ async def convert_currency_tool(
     from_currency: str,
     to_currency: str,
 ) -> str:
-    """Convert an amount between currencies using approximate local rates.
+    """Convert an amount between currencies using live exchange rates.
 
     Args:
         amount: Amount to convert
@@ -43,24 +91,34 @@ async def convert_currency_tool(
     Returns:
         JSON with converted amount and exchange rate
     """
-    from_currency = from_currency.upper()
-    to_currency = to_currency.upper()
+    from_currency = from_currency.upper().strip()
+    to_currency = to_currency.upper().strip()
 
-    # Convert via USD as base using built-in rates
-    from_rate = MOCK_RATES.get(from_currency, 1.0)
-    to_rate = MOCK_RATES.get(to_currency, 1.0)
+    if from_currency == to_currency:
+        return json.dumps({
+            "from_currency": from_currency,
+            "to_currency": to_currency,
+            "original_amount": amount,
+            "converted_amount": amount,
+            "exchange_rate": 1.0,
+            "source": "identity",
+        })
 
-    # amount in from_currency → USD → to_currency
-    amount_usd = amount / from_rate
-    converted = round(amount_usd * to_rate, 4)
-    rate = round(to_rate / from_rate, 6)
+    settings = get_settings()
+    api_key = settings.apis.exchange_rates_api_key
 
-    return json.dumps({
-        "from_currency": from_currency,
-        "to_currency": to_currency,
-        "original_amount": amount,
-        "converted_amount": converted,
-        "exchange_rate": rate,
-        "1_usd_equals": {to_currency: to_rate},
-        "is_mock": True,
-    })
+    try:
+        if api_key and not api_key.startswith("..."):
+            result = await _convert_via_exchangerate_api(
+                amount, from_currency, to_currency, api_key
+            )
+        else:
+            result = await _convert_via_frankfurter(amount, from_currency, to_currency)
+    except Exception as exc:
+        return json.dumps({
+            "error": f"Currency conversion failed: {exc}",
+            "from_currency": from_currency,
+            "to_currency": to_currency,
+        })
+
+    return json.dumps(result)

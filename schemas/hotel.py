@@ -44,5 +44,4 @@ class HotelSearchResult(BaseModel):
     params: HotelSearchParams
     options: list[HotelOption]
     cheapest_per_night_usd: float | None = None
-    source: str = "amadeus"
-    is_mock: bool = False
+    source: str = "serpapi"

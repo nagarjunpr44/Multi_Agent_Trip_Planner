@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import json
 import time
 from datetime import date, timedelta
 
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 
+from agents.itinerary.context import build_itinerary_context
 from agents.llm_factory import get_llm_for_agent
 from agents.state import TravelState
 from prompts.loader import get_prompt
@@ -15,10 +17,7 @@ from tools.registry import ToolRegistry
 async def itinerary_node(state: TravelState) -> dict:
     """
     Itinerary Agent: builds a day-by-day Itinerary from all parallel agent outputs.
-
-    On revision passes (revision_count > 0), injects the validator's structured
-    feedback so the agent knows exactly what to fix rather than regenerating blindly.
-    Uses the get_travel_distance tool to add realistic travel times between activities.
+    Enrichment and autonomous revision happen in downstream nodes.
     """
     t0 = time.monotonic()
     agent_name = "itinerary"
@@ -38,25 +37,27 @@ async def itinerary_node(state: TravelState) -> dict:
 
     num_days = _calc_days(departure_date, return_date, constraints)
     dest_info = state.get("destination_info") or {}
-    # Check city, then destinations list, then legacy singular destination key
     destination = (
         dest_info.get("city")
         or (constraints.get("destinations") or [None])[0]
         or constraints.get("destination", "")
     )
 
-    # Fetch travel distances between top activities for scheduling context
     experiences: list[dict] = state.get("experience_results", [])
     distance_context = ""
     if len(experiences) >= 2 and tools:
-        distance_context = await _fetch_sample_distances(
-            experiences[:4], destination, llm_with_tools
-        )
+        try:
+            distance_context = await _fetch_sample_distances(
+                experiences[:4], destination, llm_with_tools
+            )
+        except Exception:
+            distance_context = ""
 
     day_labels = _generate_day_labels(departure_date, num_days)
-    context_block = _build_context_block(state, num_days, num_travelers, destination, day_labels)
+    context_block = build_itinerary_context(
+        state, num_days, num_travelers, destination, day_labels
+    )
 
-    # On revision passes, tell the agent exactly what the validator flagged
     revision_section = ""
     if revision_count > 0 and revision_feedback:
         revision_section = (
@@ -74,16 +75,19 @@ async def itinerary_node(state: TravelState) -> dict:
                 "Distance context (for realistic scheduling):\n"
                 f"{distance_context or 'Not available.'}"
                 f"{revision_section}\n\n"
-                f"Produce a full day-by-day Itinerary with exactly {num_days} DayPlans. "
-                "Each day should have 3–5 activities. "
-                "Total estimated cost should be consistent with the budget analysis."
+                f"Produce a full day-by-day Itinerary with exactly {num_days} DayPlans.\n"
+                "MANDATORY per Activity:\n"
+                "- description: 80+ chars (what, why, local tip)\n"
+                "- location: street/neighborhood or landmark\n"
+                "- start_time: HH:MM, duration_minutes: realistic\n"
+                "- booking_url or maps_url when available\n"
+                "- transport_from_previous when changing venues\n"
+                "Prefer verified experiences from context."
             )
         ),
     ]
 
     itinerary: Itinerary = await structured_llm.ainvoke(messages)
-
-    # Back-fill dates if the LLM left them empty
     itinerary = _backfill_dates(itinerary, departure_date, num_days)
 
     duration_ms = round((time.monotonic() - t0) * 1000)
@@ -99,7 +103,6 @@ async def itinerary_node(state: TravelState) -> dict:
 async def _fetch_sample_distances(
     experiences: list[dict], destination: str, llm_with_tools
 ) -> str:
-    """Call get_travel_distance for pairs of nearby activities."""
     results = []
     msgs = [
         SystemMessage(content="You call the get_travel_distance tool to get travel times."),
@@ -119,16 +122,17 @@ async def _fetch_sample_distances(
         current_messages.append(response)
         for tc in response.tool_calls:
             tool_fn = ToolRegistry.get(tc["name"])
-            result = await tool_fn.ainvoke(tc["args"])
+            try:
+                result = await tool_fn.ainvoke(tc["args"])
+            except Exception as exc:
+                result = json.dumps({"error": str(exc)})
             results.append(str(result))
             current_messages.append(ToolMessage(content=str(result), tool_call_id=tc["id"]))
-        # One batch is enough
         break
     return "\n".join(results)
 
 
 def _calc_days(dep: str | None, ret: str | None, constraints: dict | None = None) -> int:
-    # First check if constraints has explicit duration_days
     if constraints and constraints.get("duration_days"):
         return int(constraints["duration_days"])
     if dep and ret:
@@ -136,7 +140,7 @@ def _calc_days(dep: str | None, ret: str | None, constraints: dict | None = None
             return max(1, (date.fromisoformat(ret) - date.fromisoformat(dep)).days)
         except (ValueError, TypeError):
             pass
-    return 3  # sensible default instead of 7
+    return 3
 
 
 def _generate_day_labels(departure_date: str | None, num_days: int) -> list[str]:
@@ -150,7 +154,6 @@ def _generate_day_labels(departure_date: str | None, num_days: int) -> list[str]
 
 
 def _backfill_dates(itinerary: Itinerary, departure_date: str | None, num_days: int) -> Itinerary:
-    """Fill in missing `date` fields on DayPlans using the departure date."""
     if not departure_date:
         return itinerary
     try:
@@ -184,77 +187,3 @@ def _backfill_dates(itinerary: Itinerary, departure_date: str | None, num_days: 
         )
     except Exception:
         return itinerary
-
-
-def _build_context_block(
-    state: TravelState,
-    num_days: int,
-    num_travelers: int,
-    destination: str,
-    day_labels: list[str],
-) -> str:
-    dest_info = state.get("destination_info") or {}
-    budget_analysis = state.get("budget_analysis") or {}
-    flight_results = state.get("flight_results") or {}
-    hotel_results = state.get("hotel_results") or {}
-    experiences = state.get("experience_results", [])
-
-    flight_info = "No flight data."
-    if flight_results.get("options"):
-        fo = flight_results["options"][0]
-        flight_info = (
-            f"Selected flight: {fo.get('airline', 'N/A')} | "
-            f"${fo.get('price_usd', 'N/A')} | "
-            f"{fo.get('total_duration_minutes', 'N/A')} min | "
-            f"Stops: {fo.get('num_stops', 'N/A')}"
-        )
-
-    hotel_info = "No hotel data."
-    if hotel_results.get("options"):
-        ho = hotel_results["options"][0]
-        hotel_info = (
-            f"Selected hotel: {ho.get('name', 'N/A')} | "
-            f"${ho.get('price_per_night_usd', 'N/A')}/night | "
-            f"{ho.get('star_rating', 'N/A')} stars | "
-            f"Address: {ho.get('address', 'N/A')}"
-        )
-
-    # Feed full experience details so LLM can create specific plans
-    exp_lines = []
-    for e in experiences[:12]:
-        line = f"- {e.get('name', 'N/A')}"
-        if e.get("address"):
-            line += f" | {e['address']}"
-        if e.get("rating"):
-            line += f" | Rating: {e['rating']}"
-        if e.get("category"):
-            line += f" | [{e['category']}]"
-        if e.get("description"):
-            line += f"\n  {e['description'][:120]}"
-        exp_lines.append(line)
-    exp_info = "\n".join(exp_lines) if exp_lines else "No activity data available."
-
-    # BudgetTier field is total_usd (not total_cost_usd)
-    mid = budget_analysis.get("mid") or {}
-    budget_total = mid.get("total_usd", "unknown")
-
-    budget_info = f"Total budget target: ${budget_total}"
-    if mid:
-        budget_info += (
-            f"\n  Activities: ${mid.get('activities_usd', 'N/A')} | "
-            f"Food: ${mid.get('food_usd', 'N/A')} | "
-            f"Transport: ${mid.get('transport_usd', 'N/A')}"
-        )
-
-    return (
-        f"Destination: {destination}\n"
-        f"Trip duration: {num_days} days | Travelers: {num_travelers}\n"
-        f"Day labels: {', '.join(day_labels)}\n\n"
-        f"Destination highlights: {', '.join(dest_info.get('highlights', []))}\n"
-        f"Local tips: {', '.join(dest_info.get('local_tips', []))}\n"
-        f"Best season: {dest_info.get('best_season', 'N/A')}\n\n"
-        f"Flight: {flight_info}\n"
-        f"Hotel: {hotel_info}\n\n"
-        f"Activities available:\n{exp_info}\n\n"
-        f"{budget_info}"
-    )

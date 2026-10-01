@@ -68,6 +68,7 @@ dependencies = [
     "babel>=2.16",
     "reportlab>=4.2",
     "folium>=0.18",
+    "firecrawl-py>=4.0",
 
     # Streamlit UI
     "streamlit>=1.42",
@@ -83,7 +84,6 @@ dev = [
     "pytest-asyncio>=0.24",
     "pytest-cov>=6.0",
     "httpx>=0.28",
-    "faker>=33.0",
     "ruff>=0.8",
     "mypy>=1.13",
 ]

@@ -44,5 +44,4 @@ class FlightSearchResult(BaseModel):
     options: list[FlightOption]
     cheapest_usd: float | None = None
     fastest_minutes: int | None = None
-    source: str = "amadeus"
-    is_mock: bool = False
+    source: str = "serpapi"

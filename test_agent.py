@@ -34,21 +34,25 @@ async def main() -> None:
     initial_state = {
         "session_id": "test-001",
         "user_query": (
-            "Plan a 3-day trip to Tokyo for 2 people in April. "
+            "Plan a 3-day trip to Tokyo for 2 people in June 2026. "
             "Budget $3000. We love food and temples."
         ),
         "constraints": {
-            "destination": "Tokyo",
-            "departure_date": "2026-04-10",
-            "return_date": "2026-04-13",
+            "destinations": ["Tokyo"],
+            "origin_city": "San Francisco",
+            "departure_date": "2026-06-10",
+            "return_date": "2026-06-13",
             "num_travelers": 2,
             "budget_usd": 3000,
             "budget_tier": "mid",
-            "preferences": ["food", "culture", "temples"],
+            "activity_preferences": ["food", "culture", "temples"],
         },
         "mode": "autonomous",
         "messages": [],
         "revision_count": 0,
+        "gather_cycle_count": 0,
+        "enrich_cycle_count": 0,
+        "replenish_targets": [],
         "status": "running",
         "errors": [],
         "agent_timings": {},
