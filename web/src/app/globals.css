@@ -1,23 +1,25 @@
 @import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
 
+/* "Night carriage" theme: deep night base, frosted glass panels, white serif type, coral accents. */
 @theme {
+  --color-night: #091017;
+  --color-night-2: #0f1820;
   --color-ink: #0e1a24;
-  --color-ink-soft: #55606b;
-  --color-sand: #f6f2ec;
-  --color-sand-2: #ece5da;
-  --color-line: #e3dbcf;
-  --color-coral: #ff5b3a;
-  --color-coral-deep: #e2411f;
-  --color-lagoon: #0f766e;
-  --color-lagoon-soft: #d9efe9;
-  --color-gold: #e9a23b;
+  --color-mist: rgb(255 255 255 / 0.68); /* secondary text on dark */
+  --color-haze: rgb(255 255 255 / 0.45); /* tertiary text on dark */
+  --color-rim: rgb(255 255 255 / 0.12);  /* hairlines on dark */
+  --color-coral: #ff6a4a;
+  --color-coral-deep: #ef4c2a;
+  --color-lagoon: #4fd1bf;
+  --color-gold: #f2b54a;
 
   --font-display: var(--font-instrument), "Iowan Old Style", Georgia, serif;
   --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
 
-  --shadow-card: 0 1px 2px rgb(14 26 36 / 0.05), 0 12px 32px -16px rgb(14 26 36 / 0.25);
-  --shadow-lift: 0 2px 4px rgb(14 26 36 / 0.06), 0 28px 60px -24px rgb(14 26 36 / 0.45);
+  --shadow-card: 0 1px 1px rgb(0 0 0 / 0.2), 0 18px 40px -20px rgb(0 0 0 / 0.6);
+  --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.25), 0 30px 70px -24px rgb(0 0 0 / 0.75);
+  --shadow-glow: 0 0 0 1px rgb(255 106 74 / 0.4), 0 12px 40px -8px rgb(255 106 74 / 0.45);
 
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 
@@ -25,13 +27,18 @@
   @keyframes shimmer {
     to { background-position: -200% 0; }
   }
+  --animate-drift: drift 40s ease-in-out infinite alternate;
+  @keyframes drift {
+    from { transform: scale(1.25) translate(0, 0); }
+    to { transform: scale(1.35) translate(-3%, -2%); }
+  }
 }
 
 @layer base {
-  html { scroll-behavior: smooth; }
+  html { scroll-behavior: smooth; color-scheme: dark; }
   body {
-    background: var(--color-sand);
-    color: var(--color-ink);
+    background: var(--color-night);
+    color: white;
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
@@ -51,7 +58,9 @@
     position: relative;
     overflow: hidden;
   }
-  .liquid-glass::before {
+  .liquid-glass::before,
+  .glass-panel::before,
+  .glass-card::before {
     content: "";
     position: absolute;
     inset: 0;
@@ -66,6 +75,45 @@
     mask-composite: exclude;
     pointer-events: none;
   }
+  .glass-panel::before, .glass-card::before { opacity: 0.55; }
+
+  /* Dark frosted panel: the app's main surfaces (chat, itinerary, dialogs). */
+  .glass-panel {
+    position: relative;
+    background: rgba(12, 19, 26, 0.62);
+    backdrop-filter: blur(28px) saturate(140%);
+    -webkit-backdrop-filter: blur(28px) saturate(140%);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.08), var(--shadow-lift);
+  }
+  /* Lighter glass for cards sitting on a panel or the page. */
+  .glass-card {
+    position: relative;
+    background: rgba(255, 255, 255, 0.055);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.06), var(--shadow-card);
+  }
+  /* Input pill that stays legible on any background (hero video, ambient scenes). */
+  .glass-input {
+    position: relative;
+    background: rgba(9, 16, 23, 0.55);
+    backdrop-filter: blur(18px) saturate(150%);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.12), 0 18px 50px -20px rgba(0, 0, 0, 0.7);
+  }
+  .glass-input::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.25));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+  .glass-input:focus-within { box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.12), var(--shadow-glow); }
 
   /* The train window sways gently; scale hides the edges during the motion. */
   .train-bob { animation: train-bob 3s ease-in-out infinite; }
@@ -73,26 +121,38 @@
     0%, 100% { transform: translateY(0) scale(1.03); }
     50% { transform: translateY(-6px) scale(1.03); }
   }
+
+  /* Film grain for ambient backgrounds */
+  .grain {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+    mix-blend-mode: overlay;
+    opacity: 0.18;
+  }
 }
 
 /* Thin, unobtrusive scrollbars inside panes */
-.pane { scrollbar-width: thin; scrollbar-color: var(--color-line) transparent; }
+.pane { scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / 0.15) transparent; }
 
-/* Leaflet: match the app's typography and soften controls */
-.leaflet-container { font-family: var(--font-sans); background: var(--color-sand-2); }
-/* Mute OSM's busy palette into the app's warm neutrals */
-.leaflet-tile-pane { filter: saturate(0.55) sepia(0.12) brightness(1.04) contrast(0.95); }
-.leaflet-control-zoom a { border-radius: 10px !important; border: none !important; box-shadow: var(--shadow-card); }
+/* Leaflet: dark map that matches the night theme */
+.leaflet-container { font-family: var(--font-sans); background: #0c141b; }
+.leaflet-tile-pane { filter: invert(1) hue-rotate(195deg) brightness(0.82) contrast(0.92) saturate(0.45); }
 .leaflet-control-zoom { border: none !important; display: flex; flex-direction: column; gap: 6px; }
-.leaflet-popup-content-wrapper { border-radius: 14px; box-shadow: var(--shadow-lift); }
+.leaflet-control-zoom a {
+  border-radius: 12px !important; border: none !important;
+  background: rgba(12, 19, 26, 0.75) !important; color: white !important; backdrop-filter: blur(12px);
+}
+.leaflet-control-attribution { background: rgba(9, 16, 23, 0.6) !important; color: rgb(255 255 255 / 0.5) !important; }
+.leaflet-control-attribution a { color: rgb(255 255 255 / 0.7) !important; }
+.leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #121c25; color: white; box-shadow: var(--shadow-lift); }
+.leaflet-popup-content-wrapper { border-radius: 14px; }
 .pin {
   display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
   background: var(--color-coral); color: white; font: 700 13px var(--font-sans);
-  border: 3px solid white; box-shadow: 0 6px 16px -4px rgb(14 26 36 / 0.5);
+  border: 2.5px solid #0c141b; box-shadow: 0 0 0 2px rgb(255 255 255 / 0.85), 0 8px 18px -4px rgb(0 0 0 / 0.7);
   transition: transform .25s var(--ease-out-expo);
 }
-.pin.active { transform: scale(1.25); background: var(--color-ink); }
-.pin.hotel { background: var(--color-lagoon); }
+.pin.active { transform: scale(1.3); }
+.pin.hotel { background: #1f8f80; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }

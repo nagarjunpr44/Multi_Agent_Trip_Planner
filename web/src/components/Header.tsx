@@ -9,11 +9,11 @@ import { listTrips } from "@/lib/api";
 import type { TripSummary } from "@/lib/types";
 import { dateRange } from "@/lib/format";
 
-export function Logo({ light }: { light?: boolean }) {
+export function Logo() {
   return (
-    <Link href="/" className={clsx("group flex items-center gap-2.5", light ? "text-white" : "text-ink")} aria-label="Wayfarer home">
+    <Link href="/" className="group flex items-center gap-2.5 text-white" aria-label="Wayfarer home">
       <svg viewBox="0 0 32 32" className="size-8 transition-transform duration-500 group-hover:-rotate-12" aria-hidden>
-        <rect width="32" height="32" rx="9" className={light ? "fill-white/15" : "fill-ink"} />
+        <rect width="32" height="32" rx="9" className="fill-white/15" />
         <path d="M8 21c4-9 12-12 16-11" stroke="#ff5b3a" strokeWidth="2.6" fill="none" strokeLinecap="round" />
         <circle cx="8" cy="21" r="2.6" fill="#f6f2ec" />
         <circle cx="24" cy="10" r="2.6" fill="#ff5b3a" />
@@ -54,12 +54,12 @@ export function Header({ variant = "solid", onNewTrip }: { variant?: "overlay" |
 
   if (variant === "solid") {
     return (
-      <header className="relative z-40 border-b border-line bg-white">
+      <header className="relative z-40 border-b border-rim bg-night/40 backdrop-blur-xl">
         <div className="flex h-16 items-center gap-6 px-4 sm:px-6">
           <Logo />
           <div className="ml-auto flex items-center gap-2">
-            <MyTrips light={false} />
-            <button onClick={onNewTrip} className="flex items-center gap-1.5 rounded-full bg-ink px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-coral">
+            <MyTrips light />
+            <button onClick={onNewTrip} className="flex items-center gap-1.5 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-ink transition hover:bg-coral hover:text-white">
               <Plus className="size-4" /> <span className="hidden sm:inline">Plan a trip</span><span className="sm:hidden">New</span>
             </button>
           </div>
@@ -72,18 +72,18 @@ export function Header({ variant = "solid", onNewTrip }: { variant?: "overlay" |
   return (
     <>
       {/* Above the mobile menu overlay while it's open, so the X stays tappable */}
-      <header className={clsx("fixed inset-x-0 top-0 transition-[background,box-shadow] duration-500", menu ? "z-[60]" : "z-40", scrolled && !menu && "bg-white/85 shadow-card backdrop-blur-xl")}>
+      <header className={clsx("fixed inset-x-0 top-0 transition-[background,box-shadow] duration-500", menu ? "z-[60]" : "z-40", scrolled && !menu && "border-b border-rim bg-night/70 shadow-card backdrop-blur-xl")}>
         <div className={clsx("mx-auto flex max-w-7xl items-center justify-between px-5 transition-[height] duration-500 sm:px-8", scrolled ? "h-16" : "h-20 sm:h-24")}>
-          <Logo light={light} />
+          <Logo />
 
           {/* Desktop: glass pill */}
-          <nav className={clsx("hidden items-center gap-1 rounded-full p-1.5 pl-5 text-sm md:flex", light ? "liquid-glass overflow-visible bg-black/15 text-white/90" : "border border-line bg-white text-ink-soft")}>
+          <nav className={clsx("hidden items-center gap-1 rounded-full p-1.5 pl-5 text-sm md:flex", light ? "liquid-glass overflow-visible bg-black/15 text-white/90" : "liquid-glass overflow-visible bg-white/5 text-mist")}>
             {/* bg-black/15: keeps white links legible over bright scenes (e.g. Winter Light) */}
             {LINKS.filter((l) => l.href !== "#trips").map((l) => (
-              <a key={l.href} href={l.href} className={clsx("rounded-full px-3 py-2 transition-colors", light ? "hover:text-white" : "hover:text-ink")}>{l.label}</a>
+              <a key={l.href} href={l.href} className="rounded-full px-3 py-2 transition-colors hover:text-white">{l.label}</a>
             ))}
-            <MyTrips light={light} />
-            <button onClick={onNewTrip} className={clsx("ml-1 rounded-full px-5 py-2.5 font-semibold transition-colors", light ? "bg-white text-ink hover:bg-white/90" : "bg-ink text-white hover:bg-coral")}>
+            <MyTrips light />
+            <button onClick={onNewTrip} className={clsx("ml-1 rounded-full px-5 py-2.5 font-semibold transition-colors", light ? "bg-white text-ink hover:bg-white/90" : "bg-coral text-white hover:bg-coral-deep")}>
               Plan a trip
             </button>
           </nav>
@@ -93,7 +93,7 @@ export function Header({ variant = "solid", onNewTrip }: { variant?: "overlay" |
             onClick={() => setMenu((m) => !m)}
             aria-label={menu ? "Close menu" : "Open menu"}
             aria-expanded={menu}
-            className={clsx("relative z-[60] grid size-11 place-items-center rounded-full md:hidden", light || menu ? "liquid-glass text-white" : "border border-line bg-white text-ink")}
+            className="liquid-glass relative z-[60] grid size-11 place-items-center rounded-full text-white md:hidden"
           >
             <Menu className={clsx("absolute size-5 transition-all duration-300", menu ? "rotate-90 scale-75 opacity-0" : "rotate-0 scale-100 opacity-100")} />
             <X className={clsx("absolute size-5 transition-all duration-300", menu ? "rotate-0 scale-100 opacity-100" : "-rotate-90 scale-75 opacity-0")} />
@@ -161,7 +161,7 @@ function MyTrips({ light }: { light: boolean }) {
       <button
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className={clsx("flex items-center gap-1 rounded-full px-3 py-2 text-sm transition-colors", light ? "hover:text-white" : "font-semibold hover:bg-sand hover:text-ink")}
+        className={clsx("flex items-center gap-1 rounded-full px-3 py-2 text-sm text-white/90 transition-colors hover:text-white", !light && "font-semibold")}
       >
         My trips <ChevronDown className={clsx("size-4 transition-transform", open && "rotate-180")} />
       </button>
@@ -172,16 +172,16 @@ function MyTrips({ light }: { light: boolean }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.98 }}
             transition={{ duration: 0.18 }}
-            className="absolute right-0 top-full z-50 mt-3 w-80 origin-top-right overflow-hidden rounded-2xl border border-line bg-white p-2 text-left text-ink shadow-lift"
+            className="glass-panel absolute right-0 top-full z-50 mt-3 w-80 origin-top-right overflow-hidden rounded-2xl p-2 text-left text-white"
           >
-            {trips === null && <div className="h-24 animate-shimmer rounded-xl bg-[linear-gradient(90deg,#f6f2ec,#fff,#f6f2ec)] bg-[length:200%_100%]" />}
-            {trips?.length === 0 && <p className="p-4 text-sm text-ink-soft">No trips yet. Plan your first one.</p>}
+            {trips === null && <div className="h-24 animate-shimmer rounded-xl bg-[linear-gradient(90deg,rgb(255_255_255/0.04),rgb(255_255_255/0.1),rgb(255_255_255/0.04))] bg-[length:200%_100%]" />}
+            {trips?.length === 0 && <p className="p-4 text-sm text-mist">No trips yet. Plan your first one.</p>}
             <ul className="max-h-96 overflow-y-auto">
               {trips?.map((t) => (
                 <li key={t.id}>
-                  <Link href={`/plan?id=${t.id}`} onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2.5 hover:bg-sand">
+                  <Link href={`/plan?id=${t.id}`} onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2.5 transition-colors hover:bg-white/8">
                     <div className="truncate font-semibold">{t.title || "Untitled trip"}</div>
-                    <div className="text-xs text-ink-soft">{dateRange(t.start_date, t.end_date)} · {t.status.replace("_", " ")}</div>
+                    <div className="text-xs text-haze">{dateRange(t.start_date, t.end_date)} · {t.status.replace("_", " ")}</div>
                   </Link>
                 </li>
               ))}

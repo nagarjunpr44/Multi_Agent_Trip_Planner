@@ -82,8 +82,8 @@ def test_trip_crud(client):
     [row] = client.get("/trips").json()
     assert row["id"] == "t1" and row["title"] == "Lisbon" and "updated_at" in row
     # Card fields for the trips grid: destination photo + dates without loading every trip
-    assert {k: row[k] for k in ("destination", "start_date", "end_date", "days")} == {
-        "destination": "", "start_date": None, "end_date": None, "days": 0,
+    assert {k: row[k] for k in ("destination", "start_date", "end_date", "days", "photo")} == {
+        "destination": "", "start_date": None, "end_date": None, "days": 0, "photo": "",
     }
 
     got = client.get("/trips/t1").json()

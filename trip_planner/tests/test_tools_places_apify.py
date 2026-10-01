@@ -25,6 +25,7 @@ ITEM = {
     + [{"day": "Monday", "hours": "Closed"}],
     "url": "https://www.google.com/maps/place/kim",
     "website": "http://kimsislandsi.com/",
+    "imageUrl": "https://lh3.googleusercontent.com/p/kim",
     "permanentlyClosed": False,
 }
 
@@ -77,6 +78,7 @@ async def test_search_places_maps_items_and_sends_detail_scrape(monkeypatch):
     assert (p.name, p.rating, p.user_ratings, p.price_level) == ("Kim's Island", 4.5, 91, 2)
     assert (p.lat, p.lng, p.maps_url) == (40.51, -74.24, "https://www.google.com/maps/place/kim")
     assert p.types == ["Chinese restaurant", "Delivery Restaurant"]
+    assert p.photo_url == "https://lh3.googleusercontent.com/p/kim"
     assert len(p.hours) == 6 and all(h.weekday != 0 for h in p.hours)  # closed Mondays
 
     req = calls[0]

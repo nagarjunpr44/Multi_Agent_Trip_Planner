@@ -64,4 +64,5 @@ def _option(prop: dict, check_in: date, check_out: date, nights: int) -> HotelOp
         rating=prop.get("overall_rating"),
         stars=prop.get("extracted_hotel_class"),
         booking_url=prop.get("link", ""),
+        photo_url=next(iter(prop.get("images") or []), {}).get("thumbnail", ""),
     )

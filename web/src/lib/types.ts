@@ -12,6 +12,7 @@ export type Place = {
   types?: string[];
   maps_url?: string;
   website?: string;
+  photo_url?: string;
 };
 
 export type Flight = {
@@ -41,6 +42,7 @@ export type Hotel = {
   rating?: number | null;
   stars?: number | null;
   booking_url?: string;
+  photo_url?: string;
 };
 
 export type Stop = {
@@ -82,6 +84,7 @@ export type Cost = { flight: number; hotel: number; activities: number; total: n
 export type TripSummary = {
   id: string; title: string; status: Trip["status"]; updated_at: string;
   destination: string; start_date?: string | null; end_date?: string | null; days: number;
+  photo: string; // first stop/hotel photo, "" when none
 };
 
 export type Approval = { summary: string; total_usd: number };

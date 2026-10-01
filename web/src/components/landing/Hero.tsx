@@ -102,6 +102,10 @@ export function Hero({ onStart, starting, error }: { onStart: (prompt: string) =
       {/* eslint-disable-next-line @next/next/no-img-element -- static export, decorative overlay */}
       <img src="/images/hero/window.webp" alt="" aria-hidden className="train-bob pointer-events-none absolute inset-0 z-[1] h-full w-full object-cover" />
 
+      {/* Soft scrim behind the copy: dark for white text, light for the bright scene's dark text */}
+      <div aria-hidden className={clsx("pointer-events-none absolute inset-0 z-[1] transition-opacity duration-700 bg-[radial-gradient(ellipse_55%_45%_at_50%_42%,rgb(0_0_0/0.35),transparent)]", dark ? "opacity-0" : "opacity-100")} />
+      <div aria-hidden className={clsx("pointer-events-none absolute inset-0 z-[1] transition-opacity duration-700 bg-[radial-gradient(ellipse_55%_45%_at_50%_42%,rgb(255_255_255/0.45),transparent)]", dark ? "opacity-100" : "opacity-0")} />
+
       {/* Content */}
       <div className="relative z-[2] flex h-full flex-col items-center px-5 pb-6 pt-28 text-center sm:px-8 sm:pb-8 sm:pt-32">
         <div className={clsx("flex w-full flex-col items-center transition-colors duration-700", dark ? "text-[#182C41]" : "text-white [text-shadow:0_2px_24px_rgb(0_0_0/0.25)]")}>
@@ -119,7 +123,7 @@ export function Hero({ onStart, starting, error }: { onStart: (prompt: string) =
             Tell Wayfarer where you&apos;re dreaming of. It searches real flights, hotels and places, then builds a day-by-day plan you can follow on a map.
           </p>
 
-          <PromptPill dark={dark} starting={starting} onStart={onStart} />
+          <PromptPill starting={starting} onStart={onStart} />
           {error && <p role="alert" className={clsx(sans, "mt-3 text-sm font-medium")}>Couldn&apos;t start a trip: {error}</p>}
 
           <div className={clsx(sans, "mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs sm:text-sm")} role="group" aria-label="Scenery">
@@ -162,7 +166,7 @@ export function Hero({ onStart, starting, error }: { onStart: (prompt: string) =
   );
 }
 
-function PromptPill({ dark, starting, onStart }: { dark: boolean; starting: boolean; onStart: (prompt: string) => void }) {
+function PromptPill({ starting, onStart }: { starting: boolean; onStart: (prompt: string) => void }) {
   const [text, setText] = useState("");
   const [idea, setIdea] = useState(0);
   const input = useRef<HTMLInputElement>(null);
@@ -180,7 +184,8 @@ function PromptPill({ dark, starting, onStart }: { dark: boolean; starting: bool
         if (text.trim()) onStart(text.trim());
         else input.current?.focus();
       }}
-      className={clsx(sans, "liquid-glass mt-8 flex w-full max-w-[340px] items-center gap-1 rounded-full p-1.5 pl-5 [text-shadow:none] sm:max-w-xl")}
+      // Dark frosted pill: same look on every scene, so the text never fights the video.
+      className={clsx(sans, "glass-input mt-8 flex w-full max-w-[360px] items-center gap-1 rounded-full p-1.5 pl-5 text-white [text-shadow:none] sm:max-w-xl")}
     >
       <label htmlFor="hero-prompt" className="sr-only">Describe your trip</label>
       <input
@@ -190,17 +195,11 @@ function PromptPill({ dark, starting, onStart }: { dark: boolean; starting: bool
         onChange={(e) => setText(e.target.value)}
         placeholder={`Try “${IDEAS[idea]}”`}
         autoComplete="off"
-        className={clsx(
-          "min-w-0 flex-1 bg-transparent py-2 text-sm outline-none transition-colors duration-700 sm:text-[15px]",
-          dark ? "text-[#182C41] placeholder:text-[#182C41]/60" : "text-white placeholder:text-white/70",
-        )}
+        className="min-w-0 flex-1 truncate bg-transparent py-2.5 text-sm text-white outline-none placeholder:text-white/65 focus-visible:outline-none sm:text-[15px]"
       />
       <button
         disabled={starting}
-        className={clsx(
-          "group flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors duration-700 disabled:opacity-60 sm:px-5",
-          dark ? "bg-[#182C41] text-white" : "bg-white text-ink",
-        )}
+        className="group flex shrink-0 items-center gap-1.5 rounded-full bg-coral px-4 py-2.5 text-sm font-semibold text-white shadow-[0_8px_24px_-8px_rgb(255_106_74/0.7)] transition hover:bg-coral-deep disabled:opacity-60 sm:px-5"
       >
         {starting
           ? <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />

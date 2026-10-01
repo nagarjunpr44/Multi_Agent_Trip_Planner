@@ -105,6 +105,7 @@ def _place(p: dict) -> Place:
         hours=parse_hours(p.get("openingHours")),
         maps_url=p.get("url") or "",
         website=p.get("website") or "",
+        photo_url=p.get("imageUrl") or "",  # main photo; returned even with maxImages=0
     )
 
 

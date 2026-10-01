@@ -24,6 +24,7 @@ PAYLOAD = {
             "reviews": 1834,
             "rate_per_night": {"lowest": "$245", "extracted_lowest": 245},
             "total_rate": {"lowest": "$980", "extracted_lowest": 980},
+            "images": [{"thumbnail": "https://lh5.googleusercontent.com/memmo"}],
         },
         {
             "type": "hotel",
@@ -57,6 +58,8 @@ async def test_search_hotels_parses_and_sorts(monkeypatch):
     assert (memmo.lat, memmo.lng, memmo.stars, memmo.rating) == (38.7106, -9.1316, 4, 4.6)
     assert (memmo.price_per_night_usd, memmo.total_usd) == (245, 980)
     assert memmo.booking_url == "https://www.memmohotels.com/alfama"
+    assert memmo.photo_url == "https://lh5.googleusercontent.com/memmo"
+    assert hostel.photo_url == ""  # no images in the result
 
 
 async def test_search_hotels_errors(monkeypatch):

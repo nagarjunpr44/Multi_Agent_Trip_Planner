@@ -95,7 +95,7 @@ export default function TripMap({ trip, activeDay, onActiveDay, hoverStop, class
           );
         })}
         {hotel && (
-          <Marker position={[hotel.lat!, hotel.lng!]} icon={pinIcon("⌂", "#0f766e", "hotel")}>
+          <Marker position={[hotel.lat!, hotel.lng!]} icon={pinIcon("⌂", "#1f8f80", "hotel")}>
             <Popup><strong>{hotel.name}</strong><br />Your stay</Popup>
           </Marker>
         )}
@@ -105,7 +105,7 @@ export default function TripMap({ trip, activeDay, onActiveDay, hoverStop, class
         <div className="pointer-events-none absolute inset-x-0 top-0 z-[500] flex gap-2 overflow-x-auto p-3 [scrollbar-width:none]">
           {trip!.days.map((d, i) => (
             <button key={d.date} onClick={() => onActiveDay(i)}
-              className={clsx("pointer-events-auto flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold shadow-card transition", i === activeDay ? "bg-ink text-white" : "bg-white text-ink hover:bg-sand")}>
+              className={clsx("pointer-events-auto flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold shadow-card backdrop-blur-xl transition", i === activeDay ? "bg-white text-ink" : "bg-night/70 text-white ring-1 ring-rim hover:bg-night/90")}>
               <span className="size-2 rounded-full" style={{ background: DAY_COLORS[i % DAY_COLORS.length] }} />Day {i + 1}
             </button>
           ))}
@@ -113,7 +113,7 @@ export default function TripMap({ trip, activeDay, onActiveDay, hoverStop, class
       )}
       {!points.length && (
         <div className="pointer-events-none absolute inset-0 z-[500] grid place-items-center">
-          <p className="rounded-full bg-white/90 px-4 py-2 text-sm font-medium text-ink-soft shadow-card backdrop-blur">Places will pin themselves here</p>
+          <p className="glass-panel rounded-full px-4 py-2 text-sm font-medium text-mist">Places will pin themselves here</p>
         </div>
       )}
     </section>

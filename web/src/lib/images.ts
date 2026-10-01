@@ -3,6 +3,7 @@
 // Then restart `npm run dev` (or rebuild). Missing photos fall back to a gradient placeholder.
 // To use a remote photo instead, add it to OVERRIDES (key = slug).
 import manifest from "./image-manifest.json";
+import type { Trip } from "./types";
 
 const files = manifest as Record<string, string>;
 
@@ -19,14 +20,22 @@ export const destinationImage = (name?: string) => {
   return OVERRIDES[key] ?? files[`destinations/${key}`];
 };
 
+// Best real image for a trip: a photo you added for the destination, else the provider's photo
+// of the first stop (or the hotel). Undefined → callers fall back to a placeholder or scene.
+export function tripCover(trip?: Trip) {
+  if (!trip) return undefined;
+  const stopPhoto = trip.days.flatMap((d) => d.stops).find((s) => s.place.photo_url)?.place.photo_url;
+  return destinationImage(trip.destinations[0]) ?? (stopPhoto || trip.hotel?.photo_url || undefined);
+}
+
 // Placeholder palettes: [sky, mid, ground]. Picked deterministically from the label.
 const TONES: [string, string, string][] = [
-  ["#ffd3a5", "#fd6f4f", "#5b1f2c"], // sunset
-  ["#c8ecf0", "#3f9aa8", "#0e2e3c"], // lagoon
-  ["#f9e2c6", "#d48c5c", "#4d2a1c"], // desert
-  ["#e6dcf5", "#9878c2", "#2c1f45"], // dusk
-  ["#d6efcf", "#5b9b6e", "#1d3a2a"], // forest
-  ["#fde7b0", "#e5a83a", "#5a3410"], // gold
+  ["#f6a97e", "#c4475a", "#2a1020"], // sunset
+  ["#7fb8c9", "#2c5d72", "#0a1a24"], // lagoon
+  ["#e9b48a", "#9a5134", "#26130c"], // desert
+  ["#b9a3e0", "#5e4596", "#160f2a"], // dusk
+  ["#a8cfa5", "#3c6b4d", "#0d1d15"], // forest
+  ["#f4c977", "#b0702a", "#2c1806"], // gold
 ];
 export function tone(label = "") {
   let h = 0;

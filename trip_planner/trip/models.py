@@ -39,6 +39,7 @@ class Place(BaseModel):
     hours: list[OpenPeriod] | None = None  # None = unknown; [] = never open
     maps_url: str = ""
     website: str = ""
+    photo_url: str = ""  # provider's main photo, for the UI only (never shown to or set by the LLM)
 
 
 class FlightOption(BaseModel):
@@ -68,6 +69,7 @@ class HotelOption(BaseModel):
     rating: float | None = None
     stars: int | None = None
     booking_url: str = ""
+    photo_url: str = ""  # provider's thumbnail, for the UI only
 
 
 class Stop(BaseModel):

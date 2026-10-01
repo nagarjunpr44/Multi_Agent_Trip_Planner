@@ -7,6 +7,7 @@ import { ArrowLeft, ArrowRight, CalendarDays, Map, MessageCircle, Plane, Trash2 
 import clsx from "clsx";
 import { Photo } from "@/components/Photo";
 import { Logo } from "@/components/Header";
+import { SCENE_POSTERS } from "@/components/Ambient";
 import { deleteTrip, listTrips } from "@/lib/api";
 import { destinationImage } from "@/lib/images";
 import { dateRange } from "@/lib/format";
@@ -23,10 +24,22 @@ function SectionHead({ kicker, title, children }: { kicker: string; title: React
   return (
     <div className="flex flex-wrap items-end justify-between gap-6">
       <motion.div {...inView()}>
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-coral">{kicker}</p>
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-coral">{kicker}</p>
         <h2 className="mt-3 max-w-2xl font-display text-5xl leading-[1] tracking-tight sm:text-6xl">{title}</h2>
       </motion.div>
       {children}
+    </div>
+  );
+}
+
+// Blurred hero scene as section lighting.
+function SceneLight({ n, className }: { n: number; className?: string }) {
+  return (
+    <div aria-hidden className={clsx("pointer-events-none absolute inset-0 -z-10 overflow-hidden", className)}>
+      {/* eslint-disable-next-line @next/next/no-img-element -- static export, decorative */}
+      <img src={SCENE_POSTERS[n]} alt="" loading="lazy" className="absolute inset-0 h-full w-full scale-125 object-cover blur-[80px] brightness-[0.45] saturate-150" />
+      <div className="absolute inset-0 bg-gradient-to-b from-night via-night/40 to-night" />
+      <div className="grain absolute inset-0" />
     </div>
   );
 }
@@ -48,14 +61,16 @@ const DESTINATIONS = [
 export function Destinations({ onStart }: { onStart: (prompt: string) => void }) {
   const track = useRef<HTMLDivElement>(null);
   const scroll = (dir: number) => track.current?.scrollBy({ left: dir * track.current.clientWidth * 0.8, behavior: "smooth" });
+  const arrow = "glass-card grid size-12 place-items-center rounded-full text-white transition hover:bg-white/15";
 
   return (
-    <section id="destinations" className="scroll-mt-20 py-24 sm:py-32">
+    <section id="destinations" className="relative isolate scroll-mt-20 py-24 sm:py-32">
+      <div aria-hidden className="absolute left-1/2 top-0 -z-10 h-80 w-[70rem] max-w-full -translate-x-1/2 rounded-full bg-coral/10 blur-[120px]" />
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <SectionHead kicker="Start somewhere" title={<>Trips people are <em>dreaming</em> about</>}>
+        <SectionHead kicker="Start somewhere" title={<>Trips people are <em className="text-[#ffc9b8]">dreaming</em> about</>}>
           <div className="flex gap-2">
-            <button aria-label="Previous" onClick={() => scroll(-1)} className="grid size-12 place-items-center rounded-full border border-line bg-white transition hover:border-ink"><ArrowLeft className="size-5" /></button>
-            <button aria-label="Next" onClick={() => scroll(1)} className="grid size-12 place-items-center rounded-full border border-line bg-white transition hover:border-ink"><ArrowRight className="size-5" /></button>
+            <button aria-label="Previous" onClick={() => scroll(-1)} className={arrow}><ArrowLeft className="size-5" /></button>
+            <button aria-label="Next" onClick={() => scroll(1)} className={arrow}><ArrowRight className="size-5" /></button>
           </div>
         </SectionHead>
       </div>
@@ -63,12 +78,12 @@ export function Destinations({ onStart }: { onStart: (prompt: string) => void })
         style={{ paddingInline: GUTTER, scrollPaddingInline: GUTTER }}>
         {DESTINATIONS.map((d, i) => (
           <motion.button key={d.name} {...inView(i)} onClick={() => onStart(d.prompt)}
-            className="group relative w-[78vw] shrink-0 snap-start overflow-hidden rounded-[28px] text-left shadow-card sm:w-[340px]">
+            className="group relative w-[78vw] shrink-0 snap-start overflow-hidden rounded-[28px] text-left shadow-lift ring-1 ring-rim sm:w-[340px]">
             <Photo src={destinationImage(d.name)} label={d.name} className="aspect-[3/4] w-full transition-transform duration-700 ease-[cubic-bezier(.16,1,.3,1)] group-hover:scale-105" />
-            <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-ink/10 to-transparent" />
-            <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-ink backdrop-blur">{d.tag}</span>
+            <div className="absolute inset-0 bg-gradient-to-t from-night/90 via-night/10 to-transparent" />
+            <span className="liquid-glass absolute left-4 top-4 rounded-full bg-black/20 px-3 py-1 text-xs font-semibold text-white">{d.tag}</span>
             <div className="absolute inset-x-0 bottom-0 p-6 text-white">
-              <p className="text-sm text-white/75">{d.country} · {d.days} days</p>
+              <p className="text-sm text-mist">{d.country} · {d.days} days</p>
               <h3 className="mt-1 font-display text-4xl leading-none">{d.name}</h3>
               <span className="mt-4 inline-flex translate-y-2 items-center gap-1.5 rounded-full bg-coral px-4 py-2 text-sm font-semibold opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100">
                 Plan this trip <ArrowRight className="size-4" />
@@ -91,21 +106,22 @@ const STEPS = [
 
 export function HowItWorks() {
   return (
-    <section id="how" className="scroll-mt-20 bg-ink py-24 text-white sm:py-32">
+    <section id="how" className="relative isolate scroll-mt-20 py-24 sm:py-32">
+      <SceneLight n={1} />
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <motion.div {...inView()}>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-coral">How it works</p>
-          <h2 className="mt-3 max-w-3xl font-display text-5xl leading-[1] tracking-tight sm:text-6xl">From a sentence to a plan you can <em className="text-[#ffd9c9]">actually</em> follow</h2>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-coral">How it works</p>
+          <h2 className="mt-3 max-w-3xl font-display text-5xl leading-[1] tracking-tight sm:text-6xl">From a sentence to a plan you can <em className="text-[#ffc9b8]">actually</em> follow</h2>
         </motion.div>
         <div className="mt-16 grid gap-6 md:grid-cols-3">
           {STEPS.map((s, i) => (
-            <motion.div key={s.title} {...inView(i + 1)} className="group rounded-[28px] border border-white/10 bg-white/[0.04] p-8 transition hover:bg-white/[0.07]">
+            <motion.div key={s.title} {...inView(i + 1)} className="glass-card group rounded-[28px] p-8 transition hover:bg-white/[0.08]">
               <div className="flex items-center justify-between">
                 <span className="grid size-14 place-items-center rounded-2xl bg-coral/15 text-coral transition-transform duration-500 group-hover:-rotate-6 group-hover:scale-110"><s.icon className="size-7" /></span>
                 <span className="font-display text-6xl text-white/15">0{i + 1}</span>
               </div>
               <h3 className="mt-8 text-xl font-semibold">{s.title}</h3>
-              <p className="mt-2 text-white/65">{s.body}</p>
+              <p className="mt-2 text-mist">{s.body}</p>
               <StepPreview i={i} />
             </motion.div>
           ))}
@@ -128,20 +144,20 @@ function StepPreview({ i }: { i: number }) {
     );
   if (i === 1)
     return (
-      <ul className="mt-8 space-y-2 font-mono text-[13px] text-white/70">
+      <ul className="mt-8 space-y-2 font-mono text-[13px] text-mist">
         {["Flights FCO · 14 options", "Hotels in Monti · 9 options", "Colosseum · open 9–19"].map((t, k) => (
           <motion.li key={t} initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ delay: 0.4 + k * 0.35 }} className="flex items-center gap-2">
-            <span className="grid size-4 place-items-center rounded-full bg-lagoon text-[10px] text-white">✓</span>{t}
+            <span className="grid size-4 place-items-center rounded-full bg-lagoon text-[10px] text-night">✓</span>{t}
           </motion.li>
         ))}
       </ul>
     );
   return (
     <svg viewBox="0 0 240 90" className="mt-6 w-full" aria-hidden>
-      <motion.path d="M12 70 C 60 10, 110 90, 150 40 S 220 30, 228 20" fill="none" stroke="#ff5b3a" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="1 0"
+      <motion.path d="M12 70 C 60 10, 110 90, 150 40 S 220 30, 228 20" fill="none" stroke="#ff6a4a" strokeWidth="2.5" strokeLinecap="round"
         initial={{ pathLength: 0 }} whileInView={{ pathLength: 1 }} viewport={{ once: true }} transition={{ duration: 1.8, delay: 0.4, ease: "easeInOut" }} />
       {[[12, 70], [100, 52], [150, 40], [228, 20]].map(([x, y], k) => (
-        <motion.circle key={k} cx={x} cy={y} r="6" fill="#0e1a24" stroke="white" strokeWidth="2.5"
+        <motion.circle key={k} cx={x} cy={y} r="6" fill="#091017" stroke="white" strokeWidth="2.5"
           initial={{ scale: 0 }} whileInView={{ scale: 1 }} viewport={{ once: true }} transition={{ delay: 0.5 + k * 0.4, type: "spring" }} />
       ))}
     </svg>
@@ -163,27 +179,28 @@ export function YourTrips() {
   }
 
   return (
-    <section id="trips" className="scroll-mt-20 py-24 sm:py-32">
+    <section id="trips" className="relative isolate scroll-mt-20 py-24 sm:py-32">
+      <div aria-hidden className="absolute right-0 top-1/3 -z-10 h-96 w-96 rounded-full bg-lagoon/10 blur-[120px]" />
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <SectionHead kicker="Your journeys" title="Pick up where you left off" />
         <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {trips.slice(0, 9).map((t, i) => (
-            <motion.div key={t.id} {...inView(i)} className="group relative overflow-hidden rounded-[24px] bg-white shadow-card transition-shadow hover:shadow-lift">
+            <motion.div key={t.id} {...inView(i)} className="glass-card group relative overflow-hidden rounded-[24px] transition hover:-translate-y-1 hover:bg-white/[0.08]">
               <Link href={`/plan?id=${t.id}`} className="block">
-                <Photo src={destinationImage(t.destination)} label={t.destination || t.title} className="aspect-[16/10]">
-                  <div className="absolute inset-0 bg-gradient-to-t from-ink/50 to-transparent" />
+                <Photo src={destinationImage(t.destination) ?? (t.photo || undefined)} label={t.destination || t.title} className="aspect-[16/10]">
+                  <div className="absolute inset-0 bg-gradient-to-t from-night/70 to-transparent" />
                   <StatusBadge status={t.status} />
                 </Photo>
                 <div className="p-5">
                   <h3 className="truncate font-display text-2xl">{t.title || "Untitled trip"}</h3>
-                  <p className="mt-1 flex items-center gap-1.5 text-sm text-ink-soft">
+                  <p className="mt-1 flex items-center gap-1.5 text-sm text-mist">
                     <CalendarDays className="size-4" /> {dateRange(t.start_date, t.end_date)}{t.days ? ` · ${t.days} days planned` : ""}
                   </p>
                 </div>
               </Link>
               <button onClick={() => remove(t.id)} aria-label={arming === t.id ? "Confirm delete" : `Delete ${t.title || "trip"}`}
                 className={clsx("absolute right-3 top-3 flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold backdrop-blur transition",
-                  arming === t.id ? "bg-coral text-white" : "bg-white/85 text-ink opacity-0 group-hover:opacity-100 focus-visible:opacity-100")}>
+                  arming === t.id ? "bg-coral text-white" : "bg-black/40 text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100")}>
                 <Trash2 className="size-3.5" />{arming === t.id && "Delete?"}
               </button>
             </motion.div>
@@ -195,23 +212,24 @@ export function YourTrips() {
 }
 
 export function StatusBadge({ status }: { status: TripSummary["status"] }) {
-  const styles = { planning: "bg-white/90 text-ink", awaiting_approval: "bg-gold text-ink", approved: "bg-lagoon text-white" }[status];
-  return <span className={clsx("absolute bottom-3 left-3 rounded-full px-3 py-1 text-xs font-semibold capitalize", styles)}>{status.replace("_", " ")}</span>;
+  const styles = { planning: "bg-white/15 text-white", awaiting_approval: "bg-gold text-night", approved: "bg-lagoon text-night" }[status];
+  return <span className={clsx("absolute bottom-3 left-3 rounded-full px-3 py-1 text-xs font-semibold capitalize backdrop-blur", styles)}>{status.replace("_", " ")}</span>;
 }
 
 // ── Footer ──────────────────────────────────────────────────────────────────
 
 export function Footer({ onStart }: { onStart: () => void }) {
   return (
-    <footer className="border-t border-line bg-white">
-      <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6">
+    <footer className="relative isolate overflow-hidden border-t border-rim">
+      <SceneLight n={3} />
+      <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6">
         <motion.div {...inView()} className="flex flex-wrap items-end justify-between gap-8">
-          <h2 className="max-w-xl font-display text-5xl leading-none tracking-tight sm:text-6xl">Your next trip is one sentence away.</h2>
-          <button onClick={onStart} className="group flex items-center gap-2 rounded-full bg-coral px-7 py-4 text-lg font-semibold text-white transition hover:bg-coral-deep">
+          <h2 className="max-w-xl font-display text-5xl leading-none tracking-tight sm:text-7xl">Your next trip is one sentence away.</h2>
+          <button onClick={onStart} className="group flex items-center gap-2 rounded-full bg-coral px-7 py-4 text-lg font-semibold text-white shadow-[0_12px_40px_-10px_rgb(255_106_74/0.7)] transition hover:bg-coral-deep">
             Start planning <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" />
           </button>
         </motion.div>
-        <div className="mt-16 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-8 text-sm text-ink-soft">
+        <div className="mt-16 flex flex-wrap items-center justify-between gap-4 border-t border-rim pt-8 text-sm text-haze">
           <Logo />
           <p>Prices, hours and travel times come from live search. Always confirm before you book.</p>
         </div>

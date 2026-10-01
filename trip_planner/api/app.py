@@ -127,12 +127,16 @@ async def list_trips(user: str = Depends(current_user)):
 
 
 def _card(trip: dict) -> dict:
-    """What a trip card needs beyond the row: where, when, how long."""
+    """What a trip card needs beyond the row: where, when, how long, a cover photo."""
+    days = trip.get("days") or []
+    photos = [s["place"].get("photo_url") for d in days for s in d.get("stops", [])]
+    photos.append((trip.get("hotel") or {}).get("photo_url"))
     return {
         "destination": next(iter(trip.get("destinations") or []), ""),
         "start_date": trip.get("start_date"),
         "end_date": trip.get("end_date"),
-        "days": len(trip.get("days") or []),
+        "days": len(days),
+        "photo": next((p for p in photos if p), ""),
     }
 
 
