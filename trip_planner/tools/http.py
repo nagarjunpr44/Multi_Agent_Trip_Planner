@@ -41,9 +41,11 @@ def _error_text(resp: httpx.Response) -> str:
     except ValueError:
         return resp.text[:200]
     # Google: {"error": {"message"}}, SerpApi: {"error"}, Tavily: {"detail": {"error"}}
-    for key in ("error", "detail", "message"):
-        if isinstance(err, dict) and key in err:
-            err = err[key]
+    while isinstance(err, dict):
+        key = next((k for k in ("error", "detail", "message") if k in err), None)
+        if key is None:
+            break
+        err = err[key]
     return str(err)[:200]
 
 
