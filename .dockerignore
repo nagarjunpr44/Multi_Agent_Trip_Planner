@@ -31,3 +31,5 @@ tests/
 *.md
 *.log
 /tmp/
+
+data/

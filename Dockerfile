@@ -20,4 +20,5 @@ USER atp
 
 # Default: run API
 EXPOSE 8000
-CMD ["uv", "run", "python", "main.py"]
+ENV HOST=0.0.0.0
+CMD ["uv", "run", "python", "-m", "trip_planner.api"]
