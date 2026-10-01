@@ -12,7 +12,8 @@ npm run lint
 
 ## Pages
 
-- `/` landing: hero + guided prompt bar, destination carousel, your trips, how it works.
+- `/` landing: window-seat video hero (crossfading scenes behind a train-window overlay, trip
+  prompt, scene switcher), destination carousel, your trips, how it works.
 - `/plan/?id=<trip>` workspace: chat | itinerary | map. Below 1280px the itinerary and map
   share a column (toggle); below 1024px a bottom tab bar switches Chat / Itinerary / Map.
 
@@ -23,13 +24,20 @@ Every image is an optional slot with a designed gradient fallback. Drop files in
 
 | File | Used for |
 | --- | --- |
-| `hero.jpg` | landing hero (wide, ~2400px) |
 | `destinations/<slug>.jpg` | destination cards and trip covers, e.g. `lisbon.jpg`, `mexico-city.webp` |
 
 The slug is the lowercased destination with accents and punctuation turned into dashes
 (`Reykjavík` → `reykjavik`). `.jpg/.jpeg/.png/.webp/.avif` all work. For a remote URL, add it to
 `OVERRIDES` in `src/lib/images.ts`. A build step (`scripts/image-manifest.mjs`) lists the files,
 so missing photos never cause 404s.
+
+## Hero scenes
+
+`src/components/landing/Hero.tsx` lists the scenes (`SCENES`): video URL, label, and whether
+the scene is bright enough to need dark text. Posters in `public/images/hero/scene-N.webp` are each
+video's first frame, shown until the video loads (and instead of it with reduced motion or data
+saver). The MP4s currently stream from an external CDN; for production, put them in
+`public/videos/` (or your own CDN) and update `src`. `window.webp` is the train-window overlay.
 
 ## Map tiles
 

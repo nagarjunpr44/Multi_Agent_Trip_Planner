@@ -1,150 +1,211 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { motion, useScroll, useTransform } from "motion/react";
-import { ArrowRight, Calendar, MapPin, Minus, Plus, Sparkles, Users, Wallet } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { ArrowRight, Pause, Play } from "lucide-react";
 import clsx from "clsx";
-import { Photo } from "@/components/Photo";
-import { HERO_IMAGE } from "@/lib/images";
+
+// Window-seat hero: landscapes roll past a train window (overlay), one scene at a time.
+// Videos stream from a CDN (~15-25 MB each), so only the visible one loads; the rest load
+// when picked. Posters (public/images/hero/scene-N.webp) are the videos' first frames, so the
+// still-to-motion swap is seamless. For production, self-host the MP4s and update `src`.
+const CDN = "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P";
+const SCENES = [
+  { label: "Lavender Dusk", src: `${CDN}/hf_20260702_081127_0992a171-d3c6-4978-8213-0ec5df8b6d63.mp4`, dark: false },
+  { label: "Still Water", src: `${CDN}/hf_20260702_092026_dd05b805-ea0f-40b2-8c52-332b88502592.mp4`, dark: false },
+  { label: "Winter Light", src: `${CDN}/hf_20260702_081042_df7202bf-bd80-4b2b-bbc6-1f09ba2870e9.mp4`, dark: true }, // bright scene → dark text
+  { label: "Golden Hour", src: `${CDN}/hf_20260702_080959_4cac5234-3573-464e-a5b7-76b94b8a7d61.mp4`, dark: false },
+].map((s, i) => ({ ...s, poster: `/images/hero/scene-${i + 1}.webp` }));
+
+const FADE_MS = 1000; // matches the CSS crossfade; clicks during it are ignored
 
 const IDEAS = [
-  "5 days in Lisbon in May, 2 people, ~$3000, love food markets",
-  "A slow week in Kyoto during cherry blossom season",
+  "5 days in Lisbon in May, 2 people, ~$3000",
+  "A slow week in Kyoto in cherry blossom season",
   "Long weekend in Mexico City for tacos and museums",
   "Family trip to Barcelona in July, beaches + Gaudí",
 ];
 
-const rise = (i: number) => ({
-  initial: { opacity: 0, y: 28 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.9, delay: 0.15 + i * 0.12, ease: [0.16, 1, 0.3, 1] as const },
-});
+// Capabilities, not vanity metrics: every line here is something the planner actually does.
+const STATS = ["Live flight & hotel prices", "Opening hours checked", "Walking times between stops", "Day-by-day plans on a map"];
+
+const sans = "font-sans";
+
+// Reduced motion or data saver → start on still posters (the visitor can still press play).
+// The server snapshot assumes "still" so prerendered HTML never autoplays.
+const MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+function prefersStill() {
+  const saveData = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData;
+  return matchMedia(MOTION_QUERY).matches || Boolean(saveData);
+}
+function subscribeMotion(onChange: () => void) {
+  const mq = matchMedia(MOTION_QUERY);
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
+}
 
 export function Hero({ onStart, starting, error }: { onStart: (prompt: string) => void; starting: boolean; error: string | null }) {
-  const ref = useRef<HTMLElement>(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
-  const y = useTransform(scrollYProgress, [0, 1], ["0%", "18%"]);
-  const scale = useTransform(scrollYProgress, [0, 1], [1.05, 1.15]);
+  const [active, setActive] = useState(0);
+  const [transitioning, setTransitioning] = useState(false);
+  const [choice, setChoice] = useState<boolean | null>(null); // the visitor's play/pause, once they press it
+  const still = useSyncExternalStore(subscribeMotion, prefersStill, () => true);
+  const playing = choice ?? !still;
+  const videos = useRef<(HTMLVideoElement | null)[]>([]);
+  const cooldown = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => { if (cooldown.current) clearTimeout(cooldown.current); }, []);
+
+  // Play only the active scene; pause the rest once they've faded out.
+  useEffect(() => {
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    videos.current.forEach((v, i) => {
+      if (!v) return;
+      if (i === active && playing) {
+        v.preload = "auto";
+        v.play().catch(() => {}); // autoplay can be refused; the poster stays visible
+      } else if (i !== active) {
+        timers.push(setTimeout(() => v.pause(), FADE_MS));
+      } else {
+        v.pause();
+      }
+    });
+    return () => timers.forEach(clearTimeout); // a quick switch back must not pause the new active scene
+  }, [active, playing]);
+
+  const pick = useCallback((i: number) => {
+    if (i === active || transitioning) return;
+    setActive(i);
+    setTransitioning(true);
+    cooldown.current = setTimeout(() => setTransitioning(false), FADE_MS);
+  }, [active, transitioning]);
+
+  const dark = SCENES[active].dark;
 
   return (
-    <section ref={ref} className="relative isolate flex min-h-[92svh] items-end overflow-hidden pb-14 pt-32 sm:items-center sm:pb-24">
-      <motion.div style={{ y, scale }} className="absolute inset-0 -z-10">
-        <Photo src={HERO_IMAGE} label="hero" priority className="h-full w-full" />
-      </motion.div>
-      {/* Legibility scrim */}
-      <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgb(14_26_36/.55)_0%,rgb(14_26_36/.15)_40%,rgb(14_26_36/.65)_100%)]" />
+    <section className="relative h-[100svh] min-h-[620px] w-full overflow-hidden bg-black" aria-label="Plan a trip">
+      {/* Background scenes */}
+      {SCENES.map((s, i) => (
+        <video
+          key={s.src}
+          ref={(el) => { videos.current[i] = el; }}
+          src={s.src}
+          poster={s.poster}
+          muted
+          loop
+          playsInline
+          preload={i === 0 ? "auto" : "none"}
+          aria-hidden
+          className={clsx("absolute inset-0 h-full w-full object-cover transition-opacity duration-1000 ease-in-out", i === active ? "opacity-100" : "opacity-0")}
+        />
+      ))}
 
-      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6">
-        <motion.p {...rise(0)} className="mb-5 inline-flex items-center gap-2 rounded-full bg-white/15 px-3.5 py-1.5 text-sm font-medium text-white backdrop-blur-md">
-          <Sparkles className="size-4 text-gold" /> Real prices, real opening hours, real walking times
-        </motion.p>
-        <motion.h1 {...rise(1)} className="max-w-4xl font-display text-[clamp(3rem,8vw,7.5rem)] leading-[0.92] tracking-[-0.02em] text-white">
-          Plan less. <em className="text-[#ffd9c9]">Wander</em> more.
-        </motion.h1>
-        <motion.p {...rise(2)} className="mt-6 max-w-xl text-lg text-white/85">
-          Tell Wayfarer where you&apos;re dreaming of. It searches flights, hotels and places, then builds a day-by-day plan you can see on a map.
-        </motion.p>
-        <motion.div {...rise(3)} className="mt-10">
-          <PromptBar onStart={onStart} starting={starting} />
-          {error && <p role="alert" className="mt-3 text-sm font-medium text-[#ffd9c9]">Couldn&apos;t start a trip: {error}</p>}
-        </motion.div>
+      {/* Train window frame */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- static export, decorative overlay */}
+      <img src="/images/hero/window.webp" alt="" aria-hidden className="train-bob pointer-events-none absolute inset-0 z-[1] h-full w-full object-cover" />
+
+      {/* Content */}
+      <div className="relative z-[2] flex h-full flex-col items-center px-5 pb-6 pt-28 text-center sm:px-8 sm:pb-8 sm:pt-32">
+        <div className={clsx("flex w-full flex-col items-center transition-colors duration-700", dark ? "text-[#182C41]" : "text-white [text-shadow:0_2px_24px_rgb(0_0_0/0.25)]")}>
+          <p className={clsx(sans, "liquid-glass rounded-full px-4 py-1.5 text-xs sm:text-sm")}>
+            Real prices · real opening hours · real walking times
+          </p>
+
+          <h1 className="mt-6 max-w-4xl font-display text-4xl leading-[1.1] tracking-[-0.01em] sm:text-5xl md:text-7xl lg:text-[5.5rem]">
+            Plan less, <em>wander</em>
+            <br />
+            further than ever
+          </h1>
+
+          <p className={clsx(sans, "mt-5 max-w-xl text-[15px] leading-relaxed opacity-90 sm:text-base")}>
+            Tell Wayfarer where you&apos;re dreaming of. It searches real flights, hotels and places, then builds a day-by-day plan you can follow on a map.
+          </p>
+
+          <PromptPill dark={dark} starting={starting} onStart={onStart} />
+          {error && <p role="alert" className={clsx(sans, "mt-3 text-sm font-medium")}>Couldn&apos;t start a trip: {error}</p>}
+
+          <div className={clsx(sans, "mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs sm:text-sm")} role="group" aria-label="Scenery">
+            {SCENES.map((s, i) => (
+              <button
+                key={s.label}
+                onClick={() => pick(i)}
+                aria-pressed={i === active}
+                className={clsx(
+                  "border-b pb-1 transition-[opacity,border-color] duration-300",
+                  i === active ? "border-current opacity-100" : "border-transparent opacity-50 hover:opacity-80",
+                )}
+              >
+                {s.label}
+              </button>
+            ))}
+            <button
+              onClick={() => setChoice(!playing)}
+              aria-label={playing ? "Pause background video" : "Play background video"}
+              className="grid size-7 place-items-center rounded-full opacity-60 transition hover:opacity-100"
+            >
+              {playing ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1" />
+
+        {/* Stats: always white, they sit on the window frame */}
+        <ul className={clsx(sans, "flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-white/70 sm:text-sm")}>
+          {STATS.map((s, i) => (
+            <li key={s} className="flex items-center gap-4">
+              {i > 0 && <span aria-hidden className="hidden sm:inline">|</span>}
+              {s}
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   );
 }
 
-function PromptBar({ onStart, starting }: { onStart: (prompt: string) => void; starting: boolean }) {
-  const [mode, setMode] = useState<"guided" | "free">("guided");
-  const [where, setWhere] = useState("");
-  const [when, setWhen] = useState("");
-  const [who, setWho] = useState(2);
-  const [budget, setBudget] = useState("");
-  const [free, setFree] = useState("");
+function PromptPill({ dark, starting, onStart }: { dark: boolean; starting: boolean; onStart: (prompt: string) => void }) {
+  const [text, setText] = useState("");
   const [idea, setIdea] = useState(0);
-  const whereRef = useRef<HTMLInputElement>(null);
+  const input = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const t = setInterval(() => setIdea((i) => (i + 1) % IDEAS.length), 3500);
     return () => clearInterval(t);
   }, []);
 
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (starting) return;
-    if (mode === "free") {
-      if (free.trim()) onStart(free.trim());
-      return;
-    }
-    if (!where.trim()) { whereRef.current?.focus(); return; }
-    const parts = [`Plan a trip to ${where.trim()}`];
-    if (when.trim()) parts.push(when.trim());
-    parts.push(`${who} traveler${who > 1 ? "s" : ""}`);
-    if (budget) parts.push(`budget around ${budget}`);
-    onStart(parts.join(", ") + ".");
-  }
-
-  const field = "flex min-w-0 flex-1 flex-col gap-0.5 rounded-2xl px-5 py-3 transition hover:bg-sand focus-within:bg-sand";
-  const label = "flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-ink-soft";
-  const input = "w-full bg-transparent text-[15px] font-medium text-ink outline-none placeholder:text-ink-soft/70";
-
   return (
-    <form onSubmit={submit} className="max-w-4xl rounded-[28px] bg-white p-2 text-ink shadow-lift">
-      <div role="tablist" className="flex gap-1 px-2 pt-1">
-        {(["guided", "free"] as const).map((m) => (
-          <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => setMode(m)}
-            className={clsx("relative rounded-full px-4 py-1.5 text-sm font-semibold transition", mode === m ? "text-ink" : "text-ink-soft hover:text-ink")}>
-            {mode === m && <motion.span layoutId="mode-pill" className="absolute inset-0 -z-0 rounded-full bg-sand" transition={{ type: "spring", bounce: 0.25, duration: 0.5 }} />}
-            <span className="relative">{m === "guided" ? "Guided" : "Describe it"}</span>
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-1 flex flex-col gap-1 md:flex-row md:items-center">
-        {mode === "guided" ? (
-          <>
-            <label className={field}>
-              <span className={label}><MapPin className="size-3.5" />Where to</span>
-              <input ref={whereRef} value={where} onChange={(e) => setWhere(e.target.value)} placeholder="Lisbon, Kyoto, anywhere warm…" className={input} />
-            </label>
-            <Divider />
-            <label className={field}>
-              <span className={label}><Calendar className="size-3.5" />When</span>
-              <input value={when} onChange={(e) => setWhen(e.target.value)} placeholder="May, 5 days" className={input} />
-            </label>
-            <Divider />
-            <div className={field}>
-              <span className={label}><Users className="size-3.5" />Travelers</span>
-              <div className="flex items-center gap-3">
-                <Step label="Fewer travelers" onClick={() => setWho((n) => Math.max(1, n - 1))}><Minus className="size-3.5" /></Step>
-                <span className="w-5 text-center text-[15px] font-semibold tabular-nums">{who}</span>
-                <Step label="More travelers" onClick={() => setWho((n) => Math.min(12, n + 1))}><Plus className="size-3.5" /></Step>
-              </div>
-            </div>
-            <Divider />
-            <label className={field}>
-              <span className={label}><Wallet className="size-3.5" />Budget</span>
-              <select value={budget} onChange={(e) => setBudget(e.target.value)} className={clsx(input, "cursor-pointer appearance-none")}>
-                <option value="">Flexible</option>
-                {["$1,500", "$3,000", "$5,000", "$8,000", "$12,000"].map((b) => <option key={b} value={b}>{b}</option>)}
-              </select>
-            </label>
-          </>
-        ) : (
-          <label className={clsx(field, "md:py-4")}>
-            <span className={label}><Sparkles className="size-3.5" />Describe your trip</span>
-            <input value={free} onChange={(e) => setFree(e.target.value)} placeholder={IDEAS[idea]} className={input} autoFocus />
-          </label>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (starting) return;
+        if (text.trim()) onStart(text.trim());
+        else input.current?.focus();
+      }}
+      className={clsx(sans, "liquid-glass mt-8 flex w-full max-w-[340px] items-center gap-1 rounded-full p-1.5 pl-5 [text-shadow:none] sm:max-w-xl")}
+    >
+      <label htmlFor="hero-prompt" className="sr-only">Describe your trip</label>
+      <input
+        id="hero-prompt"
+        ref={input}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder={`Try “${IDEAS[idea]}”`}
+        autoComplete="off"
+        className={clsx(
+          "min-w-0 flex-1 bg-transparent py-2 text-sm outline-none transition-colors duration-700 sm:text-[15px]",
+          dark ? "text-[#182C41] placeholder:text-[#182C41]/60" : "text-white placeholder:text-white/70",
         )}
-        <button type="submit" disabled={starting}
-          className="group m-1 flex h-14 shrink-0 items-center justify-center gap-2 rounded-[20px] bg-coral px-7 font-semibold text-white transition hover:bg-coral-deep disabled:opacity-60 md:h-16">
-          {starting ? <span className="size-5 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : <>Plan it <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" /></>}
-        </button>
-      </div>
+      />
+      <button
+        disabled={starting}
+        className={clsx(
+          "group flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors duration-700 disabled:opacity-60 sm:px-5",
+          dark ? "bg-[#182C41] text-white" : "bg-white text-ink",
+        )}
+      >
+        {starting
+          ? <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          : <>Plan my trip <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" /></>}
+      </button>
     </form>
   );
 }
-
-const Divider = () => <span aria-hidden className="hidden h-10 w-px bg-line md:block" />;
-const Step = ({ children, label, onClick }: { children: React.ReactNode; label: string; onClick: () => void }) => (
-  <button type="button" aria-label={label} onClick={onClick} className="grid size-7 place-items-center rounded-full border border-line transition hover:border-ink">{children}</button>
-);

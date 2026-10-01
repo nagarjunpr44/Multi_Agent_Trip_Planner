@@ -1,5 +1,4 @@
 // Image slots. Add photos without touching components — drop files into web/public/images/:
-//   hero.jpg                       landing hero (wide, ~2400px)
 //   destinations/<slug>.jpg        destination cards + trip covers, e.g. lisbon.jpg, mexico-city.webp
 // Then restart `npm run dev` (or rebuild). Missing photos fall back to a gradient placeholder.
 // To use a remote photo instead, add it to OVERRIDES (key = slug).
@@ -11,10 +10,8 @@ const OVERRIDES: Record<string, string> = {
   // lisbon: "https://images.example.com/lisbon.jpg",
 };
 
-export const HERO_IMAGE = files["hero"];
-
 export const slug = (s: string) =>
-  s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().split(",")[0].trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split(",")[0].trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 export const destinationImage = (name?: string) => {
   if (!name) return undefined;
@@ -32,7 +29,6 @@ const TONES: [string, string, string][] = [
   ["#fde7b0", "#e5a83a", "#5a3410"], // gold
 ];
 export function tone(label = "") {
-  if (label === "hero") return TONES[0];
   let h = 0;
   for (const c of label) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return TONES[h % TONES.length];
