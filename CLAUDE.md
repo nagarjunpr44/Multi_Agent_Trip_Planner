@@ -1,69 +1,29 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code when working in this repository.
 
-## Architecture Overview
-The system uses a LangGraph StateGraph to orchestrate a multi-agent travel planning workflow. Key components include:
+## Architecture
+One planner agent (LangGraph) edits a structured `Trip` document through tools; code validates it.
+- `trip_planner/trip/models.py`: the Trip schema. It is the central contract; change it carefully.
+- `trip_planner/trip/check.py`: deterministic `check_trip` (closed venues, overlaps, budget, pacing…). No LLM.
+- `trip_planner/tools/`: async API clients (SerpApi flights/hotels, Google Places/Routes, OpenWeatherMap, Tavily), cached via `store`. No LLM.
+- `trip_planner/agent/`: graph (`planner → tools → approval`), tool handlers, prompts, Haiku research sub-agent, `service.py` (public API + event schema), CLI.
+- `trip_planner/llm.py`: the only place LLM clients are built. Routes tasks to models (planner = Sonnet 5.5, research = Haiku 4.5, judge = Opus 5.5).
+- `trip_planner/api/`: FastAPI SSE endpoints + static UI. `trip_planner/evals/`: eval cases, runner, Opus judge.
 
-- **Supervisor Agent**: Generates execution plans and routes work to parallel agents.
-- **Research, Flights, Hotels, Experiences, Budget, Itinerary, Validator, Booking Agents**: Specialized async functions handling specific travel domain tasks.
-- **State Management**: Shared `TravelState` TypedDict with reducers for structured state updates.
-- **Checkpointing**: Persistent state via `AsyncPostgresSaver` (production) or `MemorySaver` (development).
-- **Conditional Routing**: Fan-out execution, revision loops (max 2), and HITL interrupt before booking.
+## Rules
+- Claude 5.5 models: never set `temperature`, never force `tool_choice`; structured output uses `method="json_schema"`.
+- Keep message history append-only (thinking blocks are bound to history).
+- Stops must reference places from `search_places`; flights/hotels must come from search results. Never let the LLM invent prices, hours or travel times.
+- The system prompt must stay stable (prompt caching). Per-turn context goes in the user message.
+- Tests must not hit the network: mock HTTP via `tools/http.py`, fake chat models for the graph.
 
-## Agents
-Located in the `agents/` directory:
-- `graph.py`: Defines the StateGraph structure and compilation.
-- `state.py`: TypedDict definitions and reducer annotations.
-- `router.py`: Conditional edge functions for fan-out and revision logic.
-- Agent implementations under subdirectories: `supervisor/`, `research/`, `flights/`, `hotels/`, `experiences/`, `budget/`, `itinerary/`, `validator/`, `booking/`, `memory/`.
+## Commands
+- Install: `uv sync`
+- API + UI: `uv run python -m trip_planner.api`
+- CLI: `uv run python -m trip_planner.agent.cli`
+- Tests: `uv run pytest -q`; lint: `uv run ruff check trip_planner`
+- Evals (costs credits): `uv run python -m trip_planner.evals.run --limit 3`
 
-## Tools
-Integration tools in the `tools/` directory:
-- Flight and hotel search via SerpApi Google Flights/Hotels.
-- Web research via Tavily.
-- Weather forecasts via OpenWeatherMap.
-- Place discovery via Foursquare.
-- Currency conversion via approximate local rates.
-- Travel distance calculations via Google Maps.
-
-## Data Layer
-- **Database**: Async SQLAlchemy with PostgreSQL (production) or SQLite (development). Tables for trips, itineraries, bookings, and user preferences.
-- **Vector Memory**: ChromaDB for storing and retrieving user context embeddings.
-- **Caching**: Redis for event streaming and real-time progress delivery.
-
-## Configuration
-- Environment variables defined in `.env` (e.g., API keys, `DATABASE_URL`, `HITL_ENABLED`).
-- Model configuration per agent in `config/model_config.py`.
-- Prompt versioning via `prompts/v1/all_prompts.py`.
-
-## Development Workflow
-1. Install dependencies: `uv sync --dev`.
-2. Create environment file: `cp .env.example .env`.
-3. Run API: `uv run python main.py`.
-4. Run UI: `uv run python main.py --ui` (or `uv run streamlit run ui/app.py`).
-5. Run tests: `uv run pytest tests/ -v --cov`.
-6. Build Docker compose: `docker compose up --build`.
-
-## Testing
-- Smoke test: `uv run python test_agent.py`.
-- End-to-end test: `uv run python test_e2e.py`.
-- Full test suite: `uv run pytest tests/ -v --cov`.
-
-## Project Structure
-```
-AgenticTripPlanner/
-├── agents/          # Agent implementations
-├── api/             # FastAPI application
-├── tools/           # Integration tools
-├── schemas/         # Pydantic models
-├── config/          # Settings and model configs
-├── db/              # Database layer
-├── memory/          # Vector memory (ChromaDB)
-├── prompts/         # Versioned prompts
-├── observability/   # Logging, tracing, metrics
-├── ui/              # Streamlit frontend
-└── data/            # Local data (gitignored)
-```
-
-</tool>
+## Legacy
+The old multi-agent pipeline (`agents/`, `api/`, `tools/`, `ui/`, … at the repo root) is superseded by `trip_planner/` and slated for removal.
