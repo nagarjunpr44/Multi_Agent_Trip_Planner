@@ -2,8 +2,10 @@
 // Runs automatically before `npm run dev` and `npm run build`.
 import { readdirSync, writeFileSync, existsSync } from "node:fs";
 import { join, parse } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = new URL("../public/images/", import.meta.url).pathname;
+// fileURLToPath, not URL.pathname: pathname keeps %20 for spaces in the folder name.
+const root = fileURLToPath(new URL("../public/images/", import.meta.url));
 const exts = new Set([".jpg", ".jpeg", ".png", ".webp", ".avif"]);
 const manifest = {};
 

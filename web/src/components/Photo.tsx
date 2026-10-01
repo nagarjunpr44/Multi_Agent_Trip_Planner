@@ -36,6 +36,9 @@ export function Photo({ src, label, className, priority, children }: {
           alt={label}
           loading={priority ? "eager" : "lazy"}
           referrerPolicy="no-referrer"
+          // Prerendered <img>s can finish loading before React hydrates and attaches onLoad,
+          // so also check on mount whether the image is already there.
+          ref={(el) => { if (el?.complete) (el.naturalWidth ? setLoaded : setFailed)(true); }}
           onLoad={() => setLoaded(true)}
           onError={() => setFailed(true)}
           className={clsx("absolute inset-0 h-full w-full object-cover transition-opacity duration-700", loaded ? "opacity-100" : "opacity-0")}
