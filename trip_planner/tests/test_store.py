@@ -22,3 +22,11 @@ async def test_store_roundtrip(tmp_path):
         assert await store.get_trip("t1") is None
     finally:
         await store.close_db()
+
+
+def test_trip_models_import_and_roundtrip():
+    from trip_planner.trip.models import Day, Issue, Trip
+
+    trip = Trip(start_date="2027-05-01", end_date="2027-05-02", days=[Day(date="2027-05-01")])
+    assert Trip.model_validate(trip.model_dump(mode="json")) == trip
+    assert Issue(code="x", severity="error", message="m", date="2027-05-01").date.day == 1

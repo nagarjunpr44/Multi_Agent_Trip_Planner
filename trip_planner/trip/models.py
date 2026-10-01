@@ -8,6 +8,7 @@ Conventions:
 
 from __future__ import annotations
 
+import datetime as dt
 import uuid
 from datetime import date, datetime, time
 from typing import Literal
@@ -81,7 +82,7 @@ class Stop(BaseModel):
 
 
 class Day(BaseModel):
-    date: date
+    date: dt.date  # dt.: a field named `date` shadows the type
     area: str = ""  # neighborhood the day is built around
     notes: str = ""
     stops: list[Stop] = Field(default_factory=list)
@@ -123,5 +124,5 @@ class Issue(BaseModel):
     code: str  # e.g. "closed", "overlap", "over_budget", "too_packed", "missing_dates"
     severity: Literal["error", "warning"]
     message: str  # human/LLM readable, e.g. "Day 2: Louvre is closed on Tuesdays"
-    date: date | None = None
+    date: dt.date | None = None
     stop_id: str | None = None
