@@ -6,7 +6,7 @@ from functools import lru_cache
 from typing import Literal
 
 from dotenv import load_dotenv
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Export .env into os.environ too, so LangSmith and the Anthropic SDK see it.
@@ -37,7 +37,9 @@ class Settings(BaseSettings):
     google_places_api_key: str = Field("", alias="GOOGLE_PLACES_API_KEY")
     # Place search backend: apify (Google Maps scraper) or google (Places API New)
     places_provider: Literal["apify", "google"] = Field("apify", alias="PLACES_PROVIDER")
-    apify_api_token: str = Field("", alias="APIFY_API_TOKEN")
+    apify_api_token: str = Field(
+        "", validation_alias=AliasChoices("APIFY_API_TOKEN", "APIFY_API_KEY")
+    )
     openweathermap_api_key: str = Field("", alias="OPENWEATHERMAP_API_KEY")
     tavily_api_key: str = Field("", alias="TAVILY_API_KEY")
     tool_timeout_seconds: float = Field(20.0, alias="TOOL_TIMEOUT_SECONDS")
