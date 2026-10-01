@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trip Planner</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <aside id="sidebar" aria-label="Trips">
+    <button id="new-trip" type="button">+ New trip</button>
+    <ul id="trips"></ul>
+  </aside>
+
+  <main id="chat">
+    <div id="log" role="log" aria-live="polite" aria-label="Conversation">
+      <p class="empty" id="hint">Create or pick a trip, then tell the planner where you want to go.</p>
+    </div>
+    <form id="composer">
+      <label for="input" class="sr-only">Message</label>
+      <textarea id="input" rows="2" placeholder="e.g. 5 days in Lisbon in May, 2 people, ~$3000" disabled></textarea>
+      <button id="send" type="submit" disabled>Send</button>
+    </form>
+  </main>
+
+  <section id="panel" aria-label="Trip details"></section>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
