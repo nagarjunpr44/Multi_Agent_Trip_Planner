@@ -29,6 +29,3 @@ One planner agent (LangGraph) edits a structured `Trip` document through tools; 
 - CLI: `uv run python -m trip_planner.agent.cli`
 - Tests: `uv run pytest -q`; lint: `uv run ruff check trip_planner`
 - Evals (costs credits): `uv run python -m trip_planner.evals.run --limit 3`
-
-## Legacy
-The old multi-agent pipeline (`agents/`, `api/`, `tools/`, `ui/`, … at the repo root) is superseded by `trip_planner/` and slated for removal.

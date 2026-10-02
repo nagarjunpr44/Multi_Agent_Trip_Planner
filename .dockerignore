@@ -11,10 +11,7 @@ dist/
 build/
 
 # Data / runtime
-data/chromadb/
-data/logs/
-data/sessions/
-data/workspace/
+data/
 
 # Dev / test
 .env
@@ -25,14 +22,11 @@ data/workspace/
 .ruff_cache/
 htmlcov/
 .coverage
-tests/
 
 # Docs / misc
 *.md
 *.log
 /tmp/
-
-data/
 
 # Web UI (built in its own Docker stage)
 web/node_modules/
