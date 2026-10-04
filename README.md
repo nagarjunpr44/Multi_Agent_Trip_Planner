@@ -5,6 +5,10 @@ as a structured document: flights, a hotel, and day-by-day stops at real places.
 step is grounded in live data, checked by code, and editable through conversation
 ("make day 2 more relaxed").
 
+![Homepage](screenshots/homepage.png)
+
+![Planner chat and trip workspace](screenshots/chat.png)
+
 ## How it works
 
 ```
